@@ -99,7 +99,14 @@ boot_alloc(uint32_t n)
 	//
 	// LAB 2: Your code here.
 
-	return NULL;
+	// We return the current nextfree (its a virtual address)
+	// and increment to point to the next free page.
+	uintptr_t alloc_addr = (uintptr_t)nextfree;
+    nextfree += ROUNDUP(n, PGSIZE);
+    
+    // TODO @Roei add asserts and validate this code
+	
+	return alloc_addr;
 }
 
 // Set up a two-level page table:
