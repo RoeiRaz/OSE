@@ -49,7 +49,7 @@ i386_detect_memory(void)
 	cprintf("Physical memory: %uK available, base = %uK, extended = %uK\n",
 		npages * PGSIZE / 1024,
 		npages_basemem * PGSIZE / 1024,
-		npages_extmem * PGSIZE / 1024);/home/roei
+		npages_extmem * PGSIZE / 1024);
 }
 
 
@@ -106,7 +106,7 @@ boot_alloc(uint32_t n)
     
     // TODO @Roei add asserts and validate this code
 	
-	return alloc_addr;
+	return (void *) alloc_addr;
 }
 
 // Set up a two-level page table:
@@ -128,7 +128,7 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+	// panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -152,7 +152,7 @@ mem_init(void)
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
     pages = (struct PageInfo *) boot_alloc(npages * sizeof(*pages));
-    memset(pages, 0, npages * sizeof(*pages);
+    memset(pages, 0, npages * sizeof(*pages));
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -256,25 +256,31 @@ page_init(void)
 	// Change the code to reflect this.
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
+    page_free_list = NULL;
+    extern char end[];
+    extern char start[];
 	size_t i;
 	for (i = 0; i < npages; i++) {
-        physaddr_t paddr = (physaddr_t) (i * PGSIZE);
+        physaddr_t paddr = page2pa(&pages[i]);
         
         // First physical page is allocated for IDT and BIOS
         if (i == 0) 
             goto in_use;
         
         // IO HOLE
-        if (paddr >= EXTPHYSMEM && paddr < EXTPHYSMEM) 
+        if (paddr >= IOPHYSMEM && paddr < EXTPHYSMEM) 
             goto in_use;
         
         // DONT OVERWRITE THE KERNEL
-        if (paddr >= PADDR(KERNBASE) && paddr < PADDR(ROUNDUP(end, PGSIZE)))
+        if (paddr >= ROUNDDOWN(PADDR((char *) start), PGSIZE)
+            && paddr < ROUNDUP(PADDR((char *) end), PGSIZE))
             goto in_use;
         
         // Keep previous allocations made using boot_alloc
-        if (paddr >= PADDR(ROUNDUP(end, PGSIZE)) && paddr < PADDR(boot_alloc(0)))
+        if (paddr >= PADDR(ROUNDUP((char *) end, PGSIZE)) 
+            && paddr < PADDR(boot_alloc(0)))
             goto in_use;
+        
         
         pages[i].pp_ref = 0;
         pages[i].pp_link = page_free_list;
@@ -283,6 +289,7 @@ page_init(void)
 		
     in_use:
         pages[i].pp_ref = 1;
+        pages[i].pp_link = NULL;
 	}
 }
 
@@ -301,8 +308,25 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
-	// Fill this function in
-	return 0;
+    // Return NULL if out of memory
+    if (page_free_list == NULL)
+        return NULL;
+
+    // Retrieve the last empty page
+    struct PageInfo * allocated_page = page_free_list;
+
+    // Update the pointer to the last empty page
+    page_free_list = allocated_page->pp_link;
+    
+    // Set link of the allocated page to NULL
+    allocated_page->pp_link = NULL;
+    
+    // Flags checks & actions
+    if (alloc_flags & ALLOC_ZERO) {
+        memset(page2kva(allocated_page), 0, PGSIZE);
+    }
+    
+	return allocated_page;
 }
 
 //
@@ -315,6 +339,12 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
+    if (pp->pp_link != NULL)
+        panic("Double free error / freed page has non NULL link field.");
+    
+    pp->pp_link = page_free_list;
+    page_free_list = pp;
+    
 }
 
 //
@@ -517,8 +547,9 @@ check_page_free_list(bool only_low_memory)
 			++nfree_extmem;
 	}
 
-	assert(nfree_basemem > 0);
 	assert(nfree_extmem > 0);
+	assert(nfree_basemem > 0);
+	
 }
 
 //
