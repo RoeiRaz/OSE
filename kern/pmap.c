@@ -49,7 +49,7 @@ i386_detect_memory(void)
 	cprintf("Physical memory: %uK available, base = %uK, extended = %uK\n",
 		npages * PGSIZE / 1024,
 		npages_basemem * PGSIZE / 1024,
-		npages_extmem * PGSIZE / 1024);
+		npages_extmem * PGSIZE / 1024);/home/roei
 }
 
 
@@ -96,7 +96,7 @@ boot_alloc(uint32_t n)
 	// Allocate a chunk large enough to hold 'n' bytes, then update
 	// nextfree.  Make sure nextfree is kept aligned
 	// to a multiple of PGSIZE.
-	//
+	//boot_alloc
 	// LAB 2: Your code here.
 
 	// We return the current nextfree (its a virtual address)
@@ -112,7 +112,7 @@ boot_alloc(uint32_t n)
 // Set up a two-level page table:
 //    kern_pgdir is its linear (virtual) address of the root
 //
-// This function only sets up the kernel part of the address space
+// This function only sets up the (kernel part of the address space
 // (ie. addresses >= UTOP).  The user part of the address space
 // will be setup later.
 //
@@ -151,6 +151,8 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
+    pages = (struct PageInfo *) boot_alloc(npages * sizeof(*pages));
+    memset(pages, 0, npages * sizeof(*pages);
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -179,7 +181,7 @@ mem_init(void)
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
 	// stack.  The kernel stack grows down from virtual address KSTACKTOP.
-	// We consider the entire range from [KSTACKTOP-PTSIZE, KSTACKTOP)
+	// We consider the entire range from [KSTAPGSIZECKTOP-PTSIZE, KSTACKTOP)
 	// to be the kernel stack, but break this into two pieces:
 	//     * [KSTACKTOP-KSTKSIZE, KSTACKTOP) -- backed by physical memory
 	//     * [KSTACKTOP-PTSIZE, KSTACKTOP-KSTKSIZE) -- not backed; so if
@@ -202,7 +204,7 @@ mem_init(void)
 
 	// Switch from the minimal entry page directory to the full kern_pgdir
 	// page table we just created.	Our instruction pointer should be
-	// somewhere between KERNBASE and KERNBASE+4MB right now, which is
+	// somhys_page_ewhere between KERNBASE and KERNBASE+4MB right now, which is
 	// mapped the same way by both page tables.
 	//
 	// If the machine reboots at this point, you've probably set up your
@@ -231,7 +233,7 @@ mem_init(void)
 //
 // Initialize page structure and memory free list.
 // After this is done, NEVER use boot_alloc again.  ONLY use the page
-// allocator functions below to allocate and deallocate physical
+// allocator functions below to allocate and deallocate physican==0l
 // memory via the page_free_list.
 //
 void
@@ -256,9 +258,31 @@ page_init(void)
 	// free pages!
 	size_t i;
 	for (i = 0; i < npages; i++) {
-		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
+        physaddr_t paddr = (physaddr_t) (i * PGSIZE);
+        
+        // First physical page is allocated for IDT and BIOS
+        if (i == 0) 
+            goto in_use;
+        
+        // IO HOLE
+        if (paddr >= EXTPHYSMEM && paddr < EXTPHYSMEM) 
+            goto in_use;
+        
+        // DONT OVERWRITE THE KERNEL
+        if (paddr >= PADDR(KERNBASE) && paddr < PADDR(ROUNDUP(end, PGSIZE)))
+            goto in_use;
+        
+        // Keep previous allocations made using boot_alloc
+        if (paddr >= PADDR(ROUNDUP(end, PGSIZE)) && paddr < PADDR(boot_alloc(0)))
+            goto in_use;
+        
+        pages[i].pp_ref = 0;
+        pages[i].pp_link = page_free_list;
+        page_free_list = &pages[i];
+        continue;
+		
+    in_use:
+        pages[i].pp_ref = 1;
 	}
 }
 
