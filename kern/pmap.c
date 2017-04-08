@@ -383,7 +383,26 @@ page_decref(struct PageInfo* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-	// Fill this function in
+	// Check if the PDE is not present
+    if(! pgdir[PDX(va)] & PTE_P) {
+        // If we don't want to create a new page table,
+        // return NULL.
+        if (! create)
+            return NULL;
+        
+        // Otherwise, create a new page table by using the
+        // page_* mechanism.
+        struct PageInfo *allocated_pt = page_alloc(ALLOC_ZERO);
+        if (allocated_pt == NULL)
+            return NULL;
+        ++allocated_pt->pp_ref;
+        
+        // Put a link to the fresh page table in the page directory,
+        // Mark as present and set flags.
+        pte_set_addr(&pgdir[PDX(va)], (physaddr_t) page2pa(allocated_pt));
+		pte_set_flags(&pgdir[PDX(va)], PTE_P | PTE_U | PTE_W);
+    }
+    
 	return NULL;
 }
 
