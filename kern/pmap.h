@@ -86,7 +86,7 @@ page2kva(struct PageInfo *pp)
 static inline void
 pte_set_flags(pte_t *pte, int flags) 
 {
-	if ((flags & 0xFFF) != 0)
+	if ((flags & ~0xFFF) != 0)
 		panic("invalid flag for PTE : %08x\n", flags);
 	if ((intptr_t) pte % PTESIZE != 0)
 		panic("invalid PTE pointer: not aligned to PTE size!\n");
