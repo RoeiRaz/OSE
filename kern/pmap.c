@@ -487,6 +487,9 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 	if (pe == NULL || !(*pe & PTE_P))
 		return NULL;
 
+	if (pte_store != NULL)
+		*pte_store = pe;
+	
 	return pa2page(PTE_ADDR(*pe));
 }
 
@@ -508,7 +511,16 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 void
 page_remove(pde_t *pgdir, void *va)
 {
-	// Fill this function in
+	pte_t *pe;
+	struct PageInfo *pp = page_lookup(pgdir, va, &pe);
+	if (pp == NULL)
+		return;
+	*pe = 0; // Sets PTE_P to 0, effectively removing the page from
+			// the virtual memory
+	tlb_invalidate(pgdir, va); // If we changed the current context,
+								// we must invalidate
+	page_decref(pp);
+	
 }
 
 //
