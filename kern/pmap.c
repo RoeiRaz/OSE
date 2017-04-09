@@ -403,7 +403,9 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 		pte_set_flags(&pgdir[PDX(va)], PTE_P | PTE_U | PTE_W);
     }
     
-	return NULL;
+    // Get the address of the page table
+    pte_t *pt = (pte_t *) (KADDR(PTE_ADDR(pgdir[PDX(va)])));
+	return &pt[PTX(va)];
 }
 
 //
