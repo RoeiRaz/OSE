@@ -395,7 +395,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
         struct PageInfo *allocated_pt = page_alloc(ALLOC_ZERO);
         if (allocated_pt == NULL)
             return NULL;
-        ++allocated_pt->pp_ref;
+        ++(allocated_pt->pp_ref);
         
         // Put a link to the fresh page table in the page directory,
         // Mark as present and set flags.
@@ -422,7 +422,18 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-	// Fill this function in
+	uintptr_t curr_va;
+	physaddr_t curr_pa;
+	pte_t *pe;
+	
+	if (size % PGSIZE != 0)
+		panic("boot_map_region: allocation in un-pagely units!\n");
+
+	for(curr_va = va; curr_va += PG_SIZE, curr_pa += PG_SIZE; curr_va < va + size) {
+		pe = pgdir_walk(pgdir, (void *) curr_va, 1);
+		pte_set_addr(pe, curr_pa);
+		pte_set_flags(pe, PTE_P | perm);
+	}
 }
 
 //
