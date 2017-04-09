@@ -429,7 +429,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 	if (size % PGSIZE != 0)
 		panic("boot_map_region: allocation in un-pagely units!\n");
 
-	for(curr_va = va; curr_va += PG_SIZE, curr_pa += PG_SIZE; curr_va < va + size) {
+	for(curr_va = va; curr_va += PGSIZE, curr_pa += PGSIZE; curr_va < va + size) {
 		pe = pgdir_walk(pgdir, (void *) curr_va, 1);
 		pte_set_addr(pe, curr_pa);
 		pte_set_flags(pe, PTE_P | perm);
@@ -482,8 +482,13 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
-	// Fill this function in
-	return NULL;
+	pte_t *pe = pgdir_walk(pgdir, va, 0);
+	
+	if (pe == NULL || !(*pe & PTE_P))
+		return NULL;
+
+	
+	return pa2page(PTE_ADDR(*pe));
 }
 
 //
