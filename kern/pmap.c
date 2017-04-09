@@ -487,7 +487,6 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 	if (pe == NULL || !(*pe & PTE_P))
 		return NULL;
 
-	
 	return pa2page(PTE_ADDR(*pe));
 }
 
