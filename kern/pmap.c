@@ -123,6 +123,7 @@ mem_init(void)
 {
 	uint32_t cr0;
 	size_t n;
+	int pp_idx;
 
 	// Find out how much memory the machine has (npages & npages_basemem).
 	i386_detect_memory();
@@ -177,6 +178,13 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
+	
+	boot_map_region(kern_pgdir,
+					(intptr_t) UPAGES,
+					PTSIZE,
+					PADDR(pages),
+					PTE_U
+	);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -189,6 +197,12 @@ mem_init(void)
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
+	
+	boot_map_region(kern_pgdir, 
+					KSTACKTOP - KSTKSIZE, 
+					KSTKSIZE,
+					PADDR((char *) bootstack),
+					PTE_W);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -199,6 +213,12 @@ mem_init(void)
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
 
+	boot_map_region(kern_pgdir, 
+					KERNBASE,
+					0xFFFFFFFF - KERNBASE + 1,
+					(physaddr_t) 0,
+					PTE_W);	
+	
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
 
@@ -422,16 +442,27 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-	uintptr_t curr_va;
-	physaddr_t curr_pa;
+	char *curr_va, *curr_pa;
+	int page_idx;
 	pte_t *pe;
 	
 	if (size % PGSIZE != 0)
 		panic("boot_map_region: allocation in un-pagely units!\n");
+	
+	if (va % PGSIZE != 0)
+		panic("boot_map_region: va is not aligned to page\n");
+	
+	if (pa % PGSIZE != 0)
+		panic("boot_map_region: pa is not aligned to page\n");
 
-	for(curr_va = va; curr_va += PGSIZE, curr_pa += PGSIZE; curr_va < va + size) {
-		pe = pgdir_walk(pgdir, (void *) curr_va, 1);
-		pte_set_addr(pe, curr_pa);
+	for(page_idx = 0; page_idx * PGSIZE < size; page_idx++) {
+		curr_va = (char *) va + page_idx * PGSIZE;
+		curr_pa = (char *) pa + page_idx * PGSIZE;
+		
+		if ((pe = pgdir_walk(pgdir, curr_va, 1)) == NULL)
+			panic("boot_map_region: could not allocate page table!");
+		
+		pte_set_addr(pe, (physaddr_t) curr_pa);
 		pte_set_flags(pe, PTE_P | perm);
 	}
 }
@@ -469,8 +500,9 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	if (pe == NULL)
 		return -E_NO_MEM;
 	
-	++(pp->pp_ref); // We increment the ref count now to handle the corner case
-					// mentioned in the comment above.
+	if (!(pp->pp_ref)++)
+		pp->pp_link = NULL;
+					
 	
 	if (*pe & PTE_P)
 		page_remove(pgdir, va);
@@ -706,12 +738,11 @@ check_kern_pgdir(void)
 	pde_t *pgdir;
 
 	pgdir = kern_pgdir;
-
+	
 	// check pages array
 	n = ROUNDUP(npages*sizeof(struct PageInfo), PGSIZE);
 	for (i = 0; i < n; i += PGSIZE)
 		assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
-
 
 	// check phys mem
 	for (i = 0; i < npages * PGSIZE; i += PGSIZE)
