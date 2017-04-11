@@ -24,6 +24,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "showmapping", "showmapping <start_addr> <end_addr>", mon_kerninfo },
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -132,7 +133,8 @@ monitor(struct Trapframe *tf)
 	char *buf;
 
 	cprintf("Welcome to the JOS kernel monitor!\n");
-	cprintf("Type 'help' for a list of commands.\n");
+	cprintf("%@rWe %@buse %@gcolors! %@rIf %@gyou %@bran %@rqemu-nox %@gyou %@wwon't see them probably :(\n");
+	cprintf("Type '%@rhelp%@w' for a list of commands.\n");
 
 
 	while (1) {
