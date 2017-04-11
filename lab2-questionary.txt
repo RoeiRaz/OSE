@@ -16,7 +16,7 @@
 === Q What's the purpose of leaving virtual memory region
 ===   0xeebfe000-0xeebff000 inaccessible?
 ===   (free form, up to 10 words)
-
+Faulting when exception stack is overflowing
 === Q Define a page table entry with the following properties:
 ===   frame starts at 0x1234000. It can be written by the kernel
 ===   without causing any errors, but has never been written yet. On
@@ -24,7 +24,7 @@
 ===   recently successfully read from it. All bits which are not
 ===   responsible for above properties are set to zero.  
 ===   (a single memory WORD as would be output by gdb's x/1x)
-
+???
 === Q Consider JOS kernel code:
 ===     mystery_t x;
 ===   	char* value = return_a_pointer();
@@ -32,7 +32,7 @@
 ===   	x = (mystery_t) value;
 ===   What type mystery_t should refer to?
 ===   (remove leading "====" from the correct answer line)
-==== uintptr_t
+uintptr_t
 ==== physaddr_t
 
 
@@ -53,33 +53,33 @@
 ===    ...
 ===    42    0x98765 "struct Segdesc gdt[]" "Global descriptor table"
 ===    50    0x00011 ""                     "boot loader code"
-
+???
 === Q We have placed the kernel and user environment in the same
 ===   address space. Why will user programs not be able to read or
 ===   write the kernel's memory? What specific mechanisms protect the
 ===   kernel memory?
 ===   (free form, up to 15 words)
-
+The PTE_U bit in PTEs pointing to kernel memory is not set
 === Q Which virtual addresses are readable by the user?
 ===   (in the form ADDR1-ADDR2, if none, specify NONE)
-
+0-0xef800000
 === Q Which virtual addresses are writable by the user?
 ===   (in the form ADDR1-ADDR2, if none, specify NONE)
-
+0-0xeec00000
 === Q Assume a hacker can change N bits inside page table (on any
 ===   level, PD or PT) after it has been set up by the kernel (and
 ===   before full TLB flush). What is the minimal N to gain full
 ===   control of the system from hacker's user space process?
-
+1
 === Q What's the maximum amount of physical memory this kernel can
 ===   support? (number of megabytes, without MB suffix)
-
+???
 === Q What single constant can be changed in kernel source to make
 ===   this limit 2 times lower (if kernel normally supports 10MB,
 ===   we want to make it support only 5MB?
-
+???
 === Q What value should this constant be changed to?
-
+???
 === Q Assume the computer has the maximum amount of memory supported
 ===   by the (unmodified) kernel. What's the overhead of managing this
 ===   memory in terms of (physical) memory spent?
@@ -96,14 +96,15 @@
 ===    Format example (all the values are made up; omit the header):
 ===    SIZE  DATA-STRUCTURE         NAME/DESCRIPTION
 ===    42    "struct Segdesc gdt[]" "Global descriptor table"
-
+???
 ====================================================================
 === Q What challenge(s) have you chosen to implement? (specify
 ===   challenge numbers separated by spaces, if more than one)
-
+2 3
 === Q If the challenge requires changing the kernel source, list the
 ===   files which you have changed/added during implementation.
 ===   (one file per line, relative to lab directory containing .git/)
-
+???
 === Q Describe your solution.
 ===   (free form, up to 500 words, don't need to use all 500!)
+???

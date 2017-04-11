@@ -104,7 +104,11 @@ boot_alloc(uint32_t n)
 	uintptr_t alloc_addr = (uintptr_t)nextfree;
     nextfree += ROUNDUP(n, PGSIZE);
     
-    // TODO @Roei add asserts and validate this code
+    if ((unsigned) PADDR(nextfree) > (long long unsigned) npages * PGSIZE)
+		panic("boot_alloc: out of physical memory!");
+	
+	if (nextfree < (char *) KERNBASE)
+		panic("boot_alloc: virtual address overflow!");
 	
 	return (void *) alloc_addr;
 }
