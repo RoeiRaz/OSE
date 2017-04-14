@@ -10,6 +10,7 @@
 #include <kern/console.h>
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
+#include <kern/pmap.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -24,7 +25,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
-	{ "showmapping", "showmapping <start_addr> <end_addr>", mon_kerninfo },
+	{ "showmapping", "showmapping <start_addr> <end_addr>", mon_showmapping },
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -53,6 +54,32 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	cprintf("  end    %08x (virt)  %08x (phys)\n", end, end - KERNBASE);
 	cprintf("Kernel executable memory footprint: %dKB\n",
 		ROUNDUP(end - entry, 1024) / 1024);
+	return 0;
+}
+
+int
+mon_showmapping(int argc, char **argv, struct Trapframe *tf)
+{
+	int i;
+	pde_t *pgdir = (pde_t *) (UVPT | ((UVPT >> PDXSHIFT) << PTXSHIFT));
+	intptr_t addr1, addr2;
+	
+	
+	if (argc != 3)
+		return 1;
+	
+	addr1 = (intptr_t) strtol(argv[1], NULL, 16);
+	
+	cprintf("::  %p\n", addr1);
+	
+	for (i = 0; i < KERNBASE / PTSIZE; i++) {
+		if (!pgdir[i] & PTE_P)
+			continue;
+		cprintf("Page directory entry %d (PDX %08x): P=%d, U=%d, W=%d, 0xAddr=%08x\n", 
+				i, i << PDXSHIFT, pgdir[i] & PTE_P, pgdir[i] & PTE_U, 
+				pgdir[i] & PTE_W, PTE_ADDR(pgdir[i]));
+	}
+	
 	return 0;
 }
 
