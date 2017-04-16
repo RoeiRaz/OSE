@@ -60,24 +60,44 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 int
 mon_showmapping(int argc, char **argv, struct Trapframe *tf)
 {
-	int i;
-	pde_t *pgdir = (pde_t *) (UVPT | ((UVPT >> PDXSHIFT) << PTXSHIFT));
-	intptr_t addr1, addr2;
+	const int output_limit = 10;
+	bool show_non_present = false;
+	int count_output;
+	pde_t *pgdir;
+	pte_t *pte;
+	char *addr1, *addr2;
+	long va;
 	
+	// Access the page directory through loopback
+	pgdir = (pde_t *) (UVPT | ((UVPT >> PDXSHIFT) << PTXSHIFT));
 	
+	// We should have 3 arguments: command name, addr1, addr2.
 	if (argc != 3)
 		return 1;
 	
-	addr1 = (intptr_t) strtol(argv[1], NULL, 16);
+	// Retrieve the virtual addresses of the relevant pages as intptr_t
+	addr1 = (char *) ROUNDDOWN((int) strtol(argv[1], NULL, 16), PGSIZE);
+	addr2 = (char *) ROUNDDOWN((int) strtol(argv[2], NULL, 16), PGSIZE);
 	
-	cprintf("::  %p\n", addr1);
+	// validate the address range
+	if (addr2 < addr1)
+		return 1;
 	
-	for (i = 0; i < KERNBASE / PTSIZE; i++) {
-		if (!pgdir[i] & PTE_P)
+	// Iterate over these pages and print out results
+	for (va = (long) addr1; va <= (long) addr2; va += PGSIZE) {
+
+		pte = pgdir_walk(pgdir, (void *) va, false);
+
+		if (show_non_present && (pte == NULL || !(*pte & PTE_P))) {
+			cprintf("%08x => XXXXXXXX \t|\t P:0 \t|\t U:X \t|\t W:X\n", (void *) va);
 			continue;
-		cprintf("Page directory entry %d (PDX %08x): P=%d, U=%d, W=%d, 0xAddr=%08x\n", 
-				i, i << PDXSHIFT, pgdir[i] & PTE_P, pgdir[i] & PTE_U, 
-				pgdir[i] & PTE_W, PTE_ADDR(pgdir[i]));
+		}
+
+		cprintf("%08x => %08x \t|\t P:1 \t|\t U:%d \t|\t W:%d\n", (void *) va,
+			PTE_ADDR(*pte),
+			*pte & PTE_U ? 1 : 0,
+			*pte & PTE_W ? 1 : 0
+		);
 	}
 	
 	return 0;
