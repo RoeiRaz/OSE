@@ -26,6 +26,7 @@ static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "showmapping", "showmapping <start_addr> <end_addr>", mon_showmapping },
+	{ "editmapping", "editmapping <va> <pte>", mon_editmapping },
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -57,6 +58,9 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+/**
+ * mon_showmapping : list page entries in specified range of virtual addresses
+ */
 int
 mon_showmapping(int argc, char **argv, struct Trapframe *tf)
 {
@@ -100,6 +104,37 @@ mon_showmapping(int argc, char **argv, struct Trapframe *tf)
 		);
 	}
 	
+	return 0;
+}
+
+/*
+ * mon_editmapping edit a mapping of va, including security bits.
+ * implicitly creates a PT if the relevant PDE is not present.
+ */
+int
+mon_editmapping(int argc, char **argv, struct Trapframe *tf)
+{
+	char *va;
+	pte_t pte_input, *pte;
+	pde_t *pgdir;
+
+	pgdir = (pde_t *) (UVPT | ((UVPT >> PDXSHIFT) << PTXSHIFT));
+
+	if (argc != 3)
+		return 1;
+	
+	va = (char *) ROUNDDOWN((int) strtol(argv[1], NULL, 16), PGSIZE);
+	pte_input = (pte_t) strtol(argv[2], NULL, 16);
+
+	pte = pgdir_walk(pgdir, va, 1);
+
+	if (pte == NULL) {
+		cprintf("mon_editmapping: Failed to create PT\n");
+		return 1;
+	}
+
+	*pte = pte_input;
+	cprintf("mon_editmapping: updated mapping from page %08x\n", va);
 	return 0;
 }
 
