@@ -53,7 +53,18 @@ uintptr_t
 ===    ...
 ===    42    0x98765 "struct Segdesc gdt[]" "Global descriptor table"
 ===    50    0x00011 ""                     "boot loader code"
-???
+0	0x00000000	""	"null page (nothing mapped)"
+1	0x00400000	""	"nothing mapped (empty)"
+...
+954	0xee800000	""	"nothing mapped"
+955	0xeec00000	""			"ENV struct array"
+956	0xef000000	"struct Page* pages"	"database of physical page states"
+957	0xef400000	"pde_t *pgdir"	"page directory, kernel/user R-"
+958	0xef800000	""	"mapping the kernel stack, invalid memory"
+959	0xefc00000	"pde_t *pgdir"	"page directory, kernel RW"
+960	0xf0000000	""	"kernel space start (KERNBASE)"
+...
+1023	0xffc00000	""	"kernel space end (top 4MB of physical memory)"
 === Q We have placed the kernel and user environment in the same
 ===   address space. Why will user programs not be able to read or
 ===   write the kernel's memory? What specific mechanisms protect the
@@ -96,7 +107,7 @@ KERNBASE
 ===    Format example (all the values are made up; omit the header):
 ===    SIZE  DATA-STRUCTURE         NAME/DESCRIPTION
 ===    42    "struct Segdesc gdt[]" "Global descriptor table"
-194 "struct Page *pages" "database of physical page states"
+194	"struct Page *pages"	"database of physical page states"
 ====================================================================
 === Q What challenge(s) have you chosen to implement? (specify
 ===   challenge numbers separated by spaces, if more than one)
@@ -109,6 +120,15 @@ kern/monitor.h
 === Q Describe your solution.
 ===   (free form, up to 500 words, don't need to use all 500!)
 Added functions to monitor.c, which implement the following commands;
-- showmapping: recieves two addresses and displays the mapping of the pages they belong to, and the mapping for the range of pages in between them. for each page the corresponding permission bits are shown. mon_showmapping() finds the virtual page addresses (parsing with strtol and using ROUNDDOWN), then iterates between the pages, using the @pgdir variable and pgdir_walk() to get mapping information in @pte.
-- editmapping: allows the user to edit the permissions of the page to which an address belongs. implementation is similar to mon_showmapping()
-- memdump: displays the memory in the range given (accepts as a parameter V/P, for virtual and physical addresses). it uses KADDR to translate physical to virtual.
+- showmapping: recieves two addresses and displays the mapping of the pages
+they belong to, and the mapping for the range of pages in between. for each
+page the corresponding permission bits are printed (using cprintf() as well).
+mon_showmapping() finds the virtual page addresses (parsing with strtol and 
+using ROUNDDOWN), then iterates between the pages, using the @pgdir variable
+and pgdir_walk() to get mapping information in @pte.
+- editmapping: allows the user to edit the permissions of the page to which an
+address belongs, using a single argument which is set to the proper pte.
+implementation is similar to mon_showmapping(), in mon_editmapping().
+- memdump: displays the memory in the range given (accepts as a parameter V/P,
+for virtual and physical addresses). it uses KADDR to translate physical to
+virtual.
