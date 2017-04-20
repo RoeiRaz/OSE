@@ -27,6 +27,7 @@ static struct Command commands[] = {
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "showmapping", "showmapping <start_addr> <end_addr>", mon_showmapping },
 	{ "editmapping", "editmapping <va> <pte>", mon_editmapping },
+	{ "dumpmem", "dumpmem <V/P> <start_addr> <end_addr>", mon_dumpmem },
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -137,6 +138,42 @@ mon_editmapping(int argc, char **argv, struct Trapframe *tf)
 	cprintf("mon_editmapping: updated mapping from page %08x\n", va);
 	return 0;
 }
+
+/*
+ * can receive either a virtual address or a physical address, also 
+ */
+int mon_dumpmem(int argc, char **argv, struct Trapframe *tf)
+{
+	if (argc != 4) {
+		cprintf("Usage: dumpmem <V/P> <start_addr> <end_addr>\n");
+		return 0;
+	}
+	if(argv[1][0] == 'V') {
+		// virtual:
+		void* start = (void*) ((int)strtol(argv[2], NULL, 16));
+		void* end = (void*) ((int)strtol(argv[3], NULL, 16));
+		cprintf("mon_dumpmemory (virtual): dumping from %08x to %08x\n", start, end);
+		for( ; start < end; ++start) {
+			char* address = (char*) start;
+			cprintf("%08x: %x\n", address, (char)*address);
+		}	
+	} else {
+		// physical:
+		physaddr_t start = strtol(argv[2], NULL, 16);
+		physaddr_t end = strtol(argv[3], NULL, 16);
+	
+		cprintf("mon_dumpmemory (physical): dumping from %08x to %08x\n", start, end);
+		for( ; start < end; ++start) {
+			// translate to va using KADDR
+			char* address = (char*) KADDR(start);
+			cprintf("%08x (VA: %08x): %x\n", start, address, (char)*address);
+		}
+	}
+	cprintf("\n");
+	return 0;
+}
+
+
 
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)

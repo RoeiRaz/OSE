@@ -73,13 +73,13 @@ The PTE_U bit in PTEs pointing to kernel memory is not set
 1
 === Q What's the maximum amount of physical memory this kernel can
 ===   support? (number of megabytes, without MB suffix)
-???
+256
 === Q What single constant can be changed in kernel source to make
 ===   this limit 2 times lower (if kernel normally supports 10MB,
 ===   we want to make it support only 5MB?
-???
+KERNBASE
 === Q What value should this constant be changed to?
-???
+0xf8000000
 === Q Assume the computer has the maximum amount of memory supported
 ===   by the (unmodified) kernel. What's the overhead of managing this
 ===   memory in terms of (physical) memory spent?
@@ -96,15 +96,19 @@ The PTE_U bit in PTEs pointing to kernel memory is not set
 ===    Format example (all the values are made up; omit the header):
 ===    SIZE  DATA-STRUCTURE         NAME/DESCRIPTION
 ===    42    "struct Segdesc gdt[]" "Global descriptor table"
-???
+194 "struct Page *pages" "database of physical page states"
 ====================================================================
 === Q What challenge(s) have you chosen to implement? (specify
 ===   challenge numbers separated by spaces, if more than one)
-2 3
+2
 === Q If the challenge requires changing the kernel source, list the
 ===   files which you have changed/added during implementation.
 ===   (one file per line, relative to lab directory containing .git/)
-???
+kern/monitor.c
+kern/monitor.h
 === Q Describe your solution.
 ===   (free form, up to 500 words, don't need to use all 500!)
-???
+Added functions to monitor.c, which implement the following commands;
+- showmapping: recieves two addresses and displays the mapping of the pages they belong to, and the mapping for the range of pages in between them. for each page the corresponding permission bits are shown. mon_showmapping() finds the virtual page addresses (parsing with strtol and using ROUNDDOWN), then iterates between the pages, using the @pgdir variable and pgdir_walk() to get mapping information in @pte.
+- editmapping: allows the user to edit the permissions of the page to which an address belongs. implementation is similar to mon_showmapping()
+- memdump: displays the memory in the range given (accepts as a parameter V/P, for virtual and physical addresses). it uses KADDR to translate physical to virtual.
