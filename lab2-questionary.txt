@@ -24,7 +24,7 @@ Faulting when exception stack is overflowing
 ===   recently successfully read from it. All bits which are not
 ===   responsible for above properties are set to zero.  
 ===   (a single memory WORD as would be output by gdb's x/1x)
-???
+0x1234025
 === Q Consider JOS kernel code:
 ===     mystery_t x;
 ===   	char* value = return_a_pointer();
