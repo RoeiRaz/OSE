@@ -86,6 +86,27 @@ page2kva(struct PageInfo *pp)
 	return KADDR(page2pa(pp));
 }
 
+// stressed out setters for PTEs
+static inline void
+pte_set_flags(pte_t *pte, int flags) 
+{
+	if ((flags & ~0xFFF) != 0)
+		panic("invalid flag for PTE : %08x\n", flags);
+	if ((intptr_t) pte % PTESIZE != 0)
+		panic("invalid PTE pointer: not aligned to PTE size!\n");
+	*pte = (*pte & ~0xFFF) | flags;
+}
+
+static inline void
+pte_set_addr(pte_t *pte, physaddr_t addr)
+{
+	if (PGOFF(addr) != 0)
+		panic("invalid PTE address: not aligned to page size!\n");
+	if ((intptr_t) pte % PTESIZE != 0)
+		panic("invalid PTE pointer: not aligned to PTE size!\n");
+	*pte = (*pte & 0xFFF) | addr;
+}
+
 pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create);
 
 #endif /* !JOS_KERN_PMAP_H */
