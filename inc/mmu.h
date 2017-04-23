@@ -54,6 +54,9 @@
 #define PTXSHIFT	12		// offset of PTX in a linear address
 #define PDXSHIFT	22		// offset of PDX in a linear address
 
+// page table entry length in bytes
+#define PTESIZE		4
+
 // Page table/directory entry flags.
 #define PTE_P		0x001	// Present
 #define PTE_W		0x002	// Writeable
@@ -69,11 +72,15 @@
 // hardware, so user processes are allowed to set them arbitrarily.
 #define PTE_AVAIL	0xE00	// Available for software use
 
+// Flags in page table or page directory entry
+#define PTE_FLAGS(pte)	((int) (pte) & 0xFFF)
+
 // Flags in PTE_SYSCALL may be used in system calls.  (Others may not.)
 #define PTE_SYSCALL	(PTE_AVAIL | PTE_P | PTE_W | PTE_U)
 
 // Address in page table or page directory entry
 #define PTE_ADDR(pte)	((physaddr_t) (pte) & ~0xFFF)
+
 
 // Control Register flags
 #define CR0_PE		0x00000001	// Protection Enable
