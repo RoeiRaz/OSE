@@ -294,6 +294,7 @@ region_alloc(struct Env *e, void *va, size_t len)
 		page_addr = page * PGSIZE;
 		
 		pp = page_alloc(ALLOC_ZERO);
+		
 		if (pp == NULL)
 			panic("Page allocation failed.");
 		
@@ -362,11 +363,39 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
-
+	struct Elf *elf;
+	struct Proghdr *ph, *eph;
+	struct Secthdr *sh;
+	
+	if (elf->e_magic != ELF_MAGIC)
+		panic("Binary corrupted: does not contain a valid ELF magic.");
+	
+	physaddr_t prev_cr3 = rcr3();
+	
+	lcr3((physaddr_t) e->env_pgdir);
+	
+	elf = (struct Elf *) binary;
+	ph = (struct Proghdr *) (binary + elf->e_phoff);
+	eph = ph + elf->e_phnum;
+	
+	for (; ph < eph; ph++) {
+		if (ph->p_type != ELF_PROG_LOAD)
+			continue;
+		region_alloc(e, (uint8_t *) ph->p_va, ph->p_memsz);
+		memcpy((uint8_t *) ph->p_va, binary + ph->p_offset, ph->p_filesz);
+	}
+	
+	lcr3(prev_cr3);
+	
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
 	// LAB 3: Your code here.
+	
+	region_alloc(e, (uint8_t *) (USTACKTOP - PGSIZE), PGSIZE);
+	
+	e->env_tf.tf_eip = elf->e_entry;
+	e->env_tf.tf_esp = USTACKTOP;
 }
 
 //
