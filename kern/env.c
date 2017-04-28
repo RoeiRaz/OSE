@@ -279,23 +279,32 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
-    unsigned npages;
-    uintptr_t start, end, i;
-    PageInfo *p;
-    if ((char *) va + len >= UTOP)
+	unsigned first_page, page, last_page;
+	uintptr_t page_addr;
+	struct PageInfo *pp;
+	
+	if ((uintptr_t) va + len >= UTOP)
         panic("region_alloc: trying to allocate over UTOP");
+
+	page = first_page = ROUNDDOWN((uintptr_t) va, PGSIZE) / PGSIZE;
+	last_page = page + (len + (uintptr_t) va - page * PGSIZE) / PGSIZE;
     
-    start = ROUNDUP((uintptr_t)va, PGSIZE);
-    end = ROUNDDOWN((uintptr_t)va, PGSIZE);
-    npages = (end - start) / PGSIZE;
-    for (i = start; i < len; i += PGSIZE) {
-        p = page_alloc(ALLOC_ZERO);
-        if (p == NULL)
-            goto clean_region_alloc;
-        page2pa(p);
-    }
-    
-clean_region_alloc:
+    while(page <= last_page) {
+		
+		page_addr = page * PGSIZE;
+		
+		pp = page_alloc(ALLOC_ZERO);
+		if (pp == NULL)
+			panic("Page allocation failed.");
+		
+		if (pgdir_walk(e->env_pgdir, (void *) page_addr, 0) != NULL)
+			panic("Address is already mapped");
+		
+		if (page_insert(e->env_pgdir, pp, (void *) page_addr, PTE_U & PTE_W) < 0)
+			panic("page_insert fault");
+		
+		page++;
+	}
     
 }
 
