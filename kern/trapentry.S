@@ -89,4 +89,9 @@ TRAPHANDLER_NOEC(t_simderr, T_SIMDERR)
  * Lab 3: Your code here for _alltraps
  */
 _alltraps:
-	jmp trap
+	push %DS
+	push %ES
+	pushal
+	push %esp
+	
+	call trap

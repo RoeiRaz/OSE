@@ -66,6 +66,11 @@ trap_init(void)
 	extern struct TrapEntry trapentries[];
 	struct TrapEntry *entry = trapentries;
 	// LAB 3: Your code here.
+	// STUDENTS NOTE:
+	// Here we implemented bonus I. we create a table
+	// of 'TrapEntry' structs in 'trapentry.S' using
+	// macros, that contain pairs of exception number
+	// and vector address.
 	for (; entry->addr != 0; entry++) {
 		SETGATE(
 			idt[entry->num], 
@@ -181,7 +186,7 @@ trap(struct Trapframe *tf)
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
 		assert(curenv);
-
+		
 		// Copy trap frame (which is currently on the stack)
 		// into 'curenv->env_tf', so that running the environment
 		// will restart at the trap point.
@@ -189,7 +194,7 @@ trap(struct Trapframe *tf)
 		// The trapframe on the stack should be ignored from here on.
 		tf = &curenv->env_tf;
 	}
-
+	
 	// Record that tf is the last real trapframe so
 	// print_trapframe can print some additional information.
 	last_tf = tf;
