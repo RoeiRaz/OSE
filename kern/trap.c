@@ -63,9 +63,19 @@ void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
-
+	extern struct TrapEntry trapentries[];
+	struct TrapEntry *entry = trapentries;
 	// LAB 3: Your code here.
-
+	for (; entry->addr != 0; entry++) {
+		SETGATE(
+			idt[entry->num], 
+			1, 
+			GD_KT, 
+			entry->addr,
+			0
+		);
+	}
+	
 	// Per-CPU setup 
 	trap_init_percpu();
 }

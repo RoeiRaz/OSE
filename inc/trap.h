@@ -74,6 +74,10 @@ struct Trapframe {
 	uint16_t tf_padding4;
 } __attribute__((packed));
 
+struct TrapEntry {
+	uint8_t num;
+	uintptr_t addr;
+} __attribute__((packed));
 
 #endif /* !__ASSEMBLER__ */
 
