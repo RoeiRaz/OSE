@@ -279,6 +279,24 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
+    unsigned npages;
+    uintptr_t start, end, i;
+    PageInfo *p;
+    if ((char *) va + len >= UTOP)
+        panic("region_alloc: trying to allocate over UTOP");
+    
+    start = ROUNDUP((uintptr_t)va, PGSIZE);
+    end = ROUNDDOWN((uintptr_t)va, PGSIZE);
+    npages = (end - start) / PGSIZE;
+    for (i = start; i < len; i += PGSIZE) {
+        p = page_alloc(ALLOC_ZERO);
+        if (p == NULL)
+            goto clean_region_alloc;
+        page2pa(p);
+    }
+    
+clean_region_alloc:
+    
 }
 
 //
