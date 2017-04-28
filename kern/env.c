@@ -188,14 +188,13 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
-    pde = page2kva(p);
+    e->env_pgdir = page2kva(p);
     for (i = 0; i <= 0xFFFFFFFF - UTOP; i += PTSIZE) {
-        pde[PDX(UTOP + i)] = kern_pgdir[PDX(UTOP + i)];
+        e->env_pgdir[PDX(UTOP + i)] = kern_pgdir[PDX(UTOP + i)];
     }
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
-
 	return 0;
 }
 
@@ -286,8 +285,10 @@ region_alloc(struct Env *e, void *va, size_t len)
 	if ((uintptr_t) va + len >= UTOP)
         panic("region_alloc: trying to allocate over UTOP");
 
+	// TODO corener cases??
+	
 	page = first_page = ROUNDDOWN((uintptr_t) va, PGSIZE) / PGSIZE;
-	last_page = page + (len + (uintptr_t) va - page * PGSIZE) / PGSIZE;
+	last_page = ROUNDDOWN(len + (uintptr_t) va, PGSIZE) / PGSIZE;
     
     while(page <= last_page) {
 		
@@ -298,11 +299,14 @@ region_alloc(struct Env *e, void *va, size_t len)
 		if (pp == NULL)
 			panic("Page allocation failed.");
 		
-		if (pgdir_walk(e->env_pgdir, (void *) page_addr, 0) != NULL)
+		pte_t *pte = pgdir_walk(e->env_pgdir, (void *) page_addr, 0);
+		if (pte != NULL && *pte & PTE_P)
 			panic("Address is already mapped");
 		
-		if (page_insert(e->env_pgdir, pp, (void *) page_addr, PTE_U & PTE_W) < 0)
+		if (page_insert(e->env_pgdir, pp, (void *) page_addr, PTE_U | PTE_W) < 0)
 			panic("page_insert fault");
+		
+		tlb_invalidate(e->env_pgdir, (void *) page_addr);
 		
 		page++;
 	}
@@ -367,14 +371,14 @@ load_icode(struct Env *e, uint8_t *binary)
 	struct Proghdr *ph, *eph;
 	struct Secthdr *sh;
 	
+	elf = (struct Elf *) binary;
+	
 	if (elf->e_magic != ELF_MAGIC)
 		panic("Binary corrupted: does not contain a valid ELF magic.");
 	
 	physaddr_t prev_cr3 = rcr3();
+	lcr3(PADDR(e->env_pgdir));
 	
-	lcr3((physaddr_t) e->env_pgdir);
-	
-	elf = (struct Elf *) binary;
 	ph = (struct Proghdr *) (binary + elf->e_phoff);
 	eph = ph + elf->e_phnum;
 	
@@ -387,6 +391,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	
 	lcr3(prev_cr3);
 	
+	
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
@@ -394,6 +399,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	
 	region_alloc(e, (uint8_t *) (USTACKTOP - PGSIZE), PGSIZE);
 	
+	// set trapframe registers to allow for correct entry
 	e->env_tf.tf_eip = elf->e_entry;
 	e->env_tf.tf_esp = USTACKTOP;
 }
@@ -409,6 +415,14 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
+	struct Env *e;
+	
+	if (env_alloc(&e, 0) < 0)
+		panic ("env_alloc faulted");
+	
+	e->env_type = type;
+	
+	load_icode(e, binary);
 }
 
 //
