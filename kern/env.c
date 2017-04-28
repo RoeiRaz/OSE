@@ -391,7 +391,6 @@ load_icode(struct Env *e, uint8_t *binary)
 	
 	lcr3(prev_cr3);
 	
-	
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
@@ -539,6 +538,21 @@ env_run(struct Env *e)
 
 	// LAB 3: Your code here.
 
+	if (curenv && e->env_id == curenv->env_id)
+		goto env_run_no_cs;
+	
+	if (curenv && curenv->env_status == ENV_RUNNING)
+		curenv->env_status = ENV_RUNNABLE;
+	
+	curenv = e;
+	curenv->env_status = ENV_RUNNING;
+	curenv->env_runs++;
+	
+	lcr3(PADDR(curenv->env_pgdir));
+	
+env_run_no_cs:
+	env_pop_tf(&curenv->env_tf);
+	
 	panic("env_run not yet implemented");
 }
 
