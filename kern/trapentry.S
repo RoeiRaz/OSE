@@ -104,6 +104,9 @@ _alltraps:
 	push %DS
 	push %ES
 	pushal
+	mov $GD_KD, %EAX
+	movl %EAX, %DS
+	movl %EAX, %ES
 	push %esp
 	
 	call trap
