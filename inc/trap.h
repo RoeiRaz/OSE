@@ -75,8 +75,9 @@ struct Trapframe {
 } __attribute__((packed));
 
 struct TrapEntry {
-	uint8_t num;
-	uintptr_t addr;
+	uint8_t te_num;
+	uint8_t te_cpl;
+	uintptr_t te_addr;
 } __attribute__((packed));
 
 #endif /* !__ASSEMBLER__ */

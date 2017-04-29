@@ -67,17 +67,17 @@ trap_init(void)
 	struct TrapEntry *entry = trapentries;
 	// LAB 3: Your code here.
 	// STUDENTS NOTE:
-	// Here we implemented bonus I. we create a table
+	// Here we implemented bonus 1. we create a table
 	// of 'TrapEntry' structs in 'trapentry.S' using
 	// macros, that contain pairs of exception number
 	// and vector address.
-	for (; entry->addr != 0; entry++) {
+	for (; entry->te_addr != 0; entry++) {
 		SETGATE(
-			idt[entry->num], 
+			idt[entry->te_num], 
 			1, 
 			GD_KT, 
-			entry->addr,
-			0
+			entry->te_addr,
+			entry->te_cpl
 		);
 	}
 	
@@ -161,7 +161,20 @@ trap_dispatch(struct Trapframe *tf)
 	switch (tf->tf_trapno) {
 		case T_PGFLT:
 			page_fault_handler(tf);
-			break;
+			return;
+		case T_BRKPT:
+			monitor(tf);
+			return;
+		case T_SYSCALL:
+			tf->tf_regs.reg_eax = syscall(
+				tf->tf_regs.reg_eax,
+				tf->tf_regs.reg_edx,
+				tf->tf_regs.reg_ecx,
+				tf->tf_regs.reg_ebx,
+				tf->tf_regs.reg_edi,
+				tf->tf_regs.reg_esi
+			);
+			return;
 	}
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
