@@ -199,6 +199,8 @@ trap(struct Trapframe *tf)
 	assert(!(read_eflags() & FL_IF));
 
 	cprintf("Incoming TRAP frame at %p\n", tf);
+	
+	cprintf("[%s]\n", trapname(tf->tf_trapno)); 
 
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
@@ -236,7 +238,11 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
-
+	if ((tf->tf_cs & 3) != 3) {
+		// Trapped from kernel code
+		panic("Kernel page fault!");
+	}
+	
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
 
