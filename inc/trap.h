@@ -86,6 +86,12 @@ struct UTrapframe {
 	uintptr_t utf_esp;
 } __attribute__((packed));
 
+struct TrapEntry {
+	uint8_t te_num;
+	uint8_t te_cpl;
+	uintptr_t te_addr;
+} __attribute__((packed));
+
 #endif /* !__ASSEMBLER__ */
 
 #endif /* !JOS_INC_TRAP_H */

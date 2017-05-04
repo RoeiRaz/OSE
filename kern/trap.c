@@ -70,9 +70,24 @@ void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
-
+	extern struct TrapEntry trapentries[];
+	struct TrapEntry *entry = trapentries;
 	// LAB 3: Your code here.
-
+	// STUDENTS NOTE:
+	// Here we implemented bonus 1. we create a table
+	// of 'TrapEntry' structs in 'trapentry.S' using
+	// macros, that contain pairs of exception number
+	// and vector address.
+	for (; entry->te_addr != 0; entry++) {
+		SETGATE(
+			idt[entry->te_num], 
+			1, 
+			GD_KT, 
+			entry->te_addr,
+			entry->te_cpl
+		);
+	}
+	
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -173,7 +188,24 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
-
+	switch (tf->tf_trapno) {
+		case T_PGFLT:
+			page_fault_handler(tf);
+			return;
+		case T_BRKPT:
+			monitor(tf);
+			return;
+		case T_SYSCALL:
+			tf->tf_regs.reg_eax = syscall(
+				tf->tf_regs.reg_eax,
+				tf->tf_regs.reg_edx,
+				tf->tf_regs.reg_ecx,
+				tf->tf_regs.reg_ebx,
+				tf->tf_regs.reg_edi,
+				tf->tf_regs.reg_esi
+			);
+			return;
+	}
 	// Handle spurious interrupts
 	// The hardware sometimes raises these because of noise on the
 	// IRQ line or other reasons. We don't care.
@@ -218,6 +250,10 @@ trap(struct Trapframe *tf)
 	// the interrupt path.
 	assert(!(read_eflags() & FL_IF));
 
+	cprintf("Incoming TRAP frame at %p\n", tf);
+	
+	cprintf("[%s]\n", trapname(tf->tf_trapno)); 
+
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
 		// Acquire the big kernel lock before doing any
@@ -231,15 +267,15 @@ trap(struct Trapframe *tf)
 			curenv = NULL;
 			sched_yield();
 		}
-
-		// Copy trap frame (which is currently on the stack)
+		
+                // Copy trap frame (which is currently on the stack)
 		// into 'curenv->env_tf', so that running the environment
 		// will restart at the trap point.
 		curenv->env_tf = *tf;
 		// The trapframe on the stack should be ignored from here on.
 		tf = &curenv->env_tf;
 	}
-
+	
 	// Record that tf is the last real trapframe so
 	// print_trapframe can print some additional information.
 	last_tf = tf;
@@ -268,7 +304,11 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
-
+	if ((tf->tf_cs & 3) != 3) {
+		// Trapped from kernel code
+		panic("Kernel page fault!");
+	}
+	
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
 

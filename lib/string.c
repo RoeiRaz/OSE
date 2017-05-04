@@ -236,11 +236,11 @@ memfind(const void *s, int c, size_t n)
 	return (void *) s;
 }
 
-long
+long long
 strtol(const char *s, char **endptr, int base)
 {
 	int neg = 0;
-	long val = 0;
+	long long val = 0;
 
 	// gobble initial whitespace
 	while (*s == ' ' || *s == '\t')
