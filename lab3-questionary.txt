@@ -24,7 +24,7 @@ Individual handlers push the relevant error codes to the stack, thus allowing a 
 === Q Did you have to do anything to make the user/softint program
 ===   behave correctly?
 ===   (yes/no)
-???
+no
 === Q The grade script expects it to produce a general protection
 ===   fault (trap 13), but softint's code says int $14. Why should
 ===   this produce interrupt vector 13? 
@@ -51,7 +51,7 @@ They protect the system by enforcing permission; Users are allowed access only t
 === Q In Exercise 9, what causes the page fault which panics the
 ===   kernel when running user/breakpoint?
 ===   (free form, 1 sentence)
-???
+Attempting to access protected memory (above USTACKTOP, in lib/libmain.c) without sufficient privileges (from user space).
 ====================================================================
 === Q What challenge(s) have you chosen to implement? (specify
 ===   challenge numbers separated by spaces, if more than one)
