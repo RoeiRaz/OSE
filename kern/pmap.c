@@ -298,7 +298,13 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
-
+    unsigned n;
+    for (n = 0; n < NCPU; n++)
+        boot_map_region(kern_pgdir, 
+                        KSTACKTOP - (KSTKSIZE + KSTKGAP) * n - KSTKSIZE, 
+                        KSTKSIZE,
+                        PADDR(percpu_kstacks[n]),
+                        PTE_W);
 }
 
 // --------------------------------------------------------------
@@ -351,7 +357,11 @@ page_init(void)
         // IO HOLE
         if (paddr >= IOPHYSMEM && paddr < EXTPHYSMEM) 
             goto in_use;
-        
+
+        // MPENTRY_PADDR - keep 1 page for multi processor initialization
+        if (ROUNDDOWN(paddr, PGSIZE) == ROUNDDOWN(MPENTRY_PADDR, PGSIZE))
+            goto in_use;
+
         // DONT OVERWRITE THE KERNEL
         if (paddr >= ROUNDDOWN(PADDR((char *) start), PGSIZE)
             && paddr < ROUNDUP(PADDR((char *) end), PGSIZE))
@@ -676,7 +686,19 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+    
+    void * res = (void *) base;
+    
+    // TODO this causes the tests to be broken, but its a very logical assert. ask igor about it.
+    //if (pa < npages * PGSIZE - MMIO_SIZE)
+    //    panic("mmio_map_region: attempt to map non-MMIO physical address %p", pa);
+    
+    if (ROUNDUP(base + size, PGSIZE) > MMIOLIM)
+        panic("mmio_map_region: MMIO virtual region overflowed");
+    
+    boot_map_region(kern_pgdir, base, ROUNDUP(size, PGSIZE), pa, PTE_PCD|PTE_PWT|PTE_W);
+    base = ROUNDUP(base + size, PGSIZE);
+    return res;
 }
 
 static uintptr_t user_mem_check_addr;
@@ -804,7 +826,7 @@ check_page_free_list(bool only_low_memory)
 
 	assert(nfree_extmem > 0);
 	assert(nfree_basemem > 0);
-	
+	cprintf("check_page_free_list() succeeded!\n");
 }
 
 //
@@ -919,9 +941,12 @@ check_kern_pgdir(void)
 	// (updated in lab 4 to check per-CPU kernel stacks)
 	for (n = 0; n < NCPU; n++) {
 		uint32_t base = KSTACKTOP - (KSTKSIZE + KSTKGAP) * (n + 1);
-		for (i = 0; i < KSTKSIZE; i += PGSIZE)
+		for (i = 0; i < KSTKSIZE; i += PGSIZE) {
+            //cprintf("n = %d, i = %d, va2pa = %x, kern pa = %x\n", n, i,check_va2pa(pgdir, base + KSTKGAP + i), PADDR(percpu_kstacks[n]) + i);
+            //cprintf("%x \n",base + KSTKGAP + i);
 			assert(check_va2pa(pgdir, base + KSTKGAP + i)
 				== PADDR(percpu_kstacks[n]) + i);
+        }
 		for (i = 0; i < KSTKGAP; i += PGSIZE)
 			assert(check_va2pa(pgdir, base + i) == ~0);
 	}
