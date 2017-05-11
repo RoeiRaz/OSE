@@ -11,7 +11,7 @@ void sched_halt(void);
 void
 sched_yield(void)
 {
-	struct Env *idle;
+	struct Env *it;
 
 	// Implement simple round-robin scheduling.
 	//
@@ -29,9 +29,38 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
+	// TODO something about this logic isn't right....
+	if (curenv == NULL) {
+		for (it = envs; it != NULL; it = it->env_link)
+			if (it->env_status == ENV_RUNNABLE)
+				goto sched_found;
 
+		goto sched_not_found;
+	}
+
+	// first part of the search.
+	for (it = curenv->env_link; it != NULL; it = it->env_link)
+		if (it->env_status == ENV_RUNNABLE)
+			goto sched_found;
+
+	// second part of the search, exclude curenv
+	for (it = envs; it != curenv; it = it->env_link)
+		if (it->env_status == ENV_RUNNABLE)
+			goto sched_found;
+
+	// check if we can reschedule curenv
+	if (curenv->env_status == ENV_RUNNING) {
+		it = curenv;
+		goto sched_found;
+	}
+
+	// we have nothing to do.
 	// sched_halt never returns
+sched_not_found:
 	sched_halt();
+
+sched_found:
+	env_run(it);
 }
 
 // Halt this CPU when there is nothing to do. Wait until the

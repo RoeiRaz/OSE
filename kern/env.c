@@ -297,7 +297,7 @@ region_alloc(struct Env *e, void *va, size_t len)
 	if ((uintptr_t) va + len >= UTOP)
         panic("region_alloc: trying to allocate over UTOP");
 
-	// TODO corener cases??
+	// TODO corner cases??
 	
 	page = first_page = ROUNDDOWN((uintptr_t) va, PGSIZE) / PGSIZE;
 	last_page = ROUNDDOWN(len + (uintptr_t) va, PGSIZE) / PGSIZE;
@@ -577,6 +577,7 @@ env_run(struct Env *e)
 	lcr3(PADDR(curenv->env_pgdir));
 	
 env_run_no_cs:
+	unlock_kernel();
 	env_pop_tf(&curenv->env_tf);
 	
 	panic("env_run not yet implemented");

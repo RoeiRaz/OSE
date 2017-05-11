@@ -83,9 +83,22 @@ sys_exofork(void)
 	// status is set to ENV_NOT_RUNNABLE, and the register set is copied
 	// from the current environment -- but tweaked so sys_exofork
 	// will appear to return 0.
-
 	// LAB 4: Your code here.
-	panic("sys_exofork not implemented");
+	struct Env *e;
+	
+	// allocate a new environment
+	e = env_alloc(&e, curenv->env_id);
+	
+	// copy the register state (whole tf)
+	memcpy(&e->env_tf, &curenv->env_tf, sizeof (struct Trapframe));
+	
+	// set status to not-runnalbe
+	e->env_status = ENV_NOT_RUNNABLE;
+	
+	// set return value in child to 0
+	e->env_tf.tf_regs.reg_eax = 0;
+	
+	return e->env_id;
 }
 
 // Set envid's env_status to status, which must be ENV_RUNNABLE
@@ -284,6 +297,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return (int32_t) sys_getenvid();
 	case SYS_env_destroy:
 		return sys_env_destroy((envid_t) a1);
+	case SYS_yield:
+		sched_yield();
+		return 0;
 	default:
 		return -E_NO_SYS;
 	}

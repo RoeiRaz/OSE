@@ -118,21 +118,18 @@ trap_init_percpu(void)
 	// user space on that CPU.
 	//
 	// LAB 4: Your code here:
-
-	// Setup a TSS so that we get the right stack
-	// when we trap to the kernel.
-	ts.ts_esp0 = KSTACKTOP;
-	ts.ts_ss0 = GD_KD;
-
-	// Initialize the TSS slot of the gdt.
-	gdt[GD_TSS0 >> 3] = SEG16(STS_T32A, (uint32_t) (&ts),
-					sizeof(struct Taskstate) - 1, 0);
-	gdt[GD_TSS0 >> 3].sd_s = 0;
-
+	thiscpu->cpu_ts.ts_esp0 = KSTACKTOPN(thiscpu->cpu_id);
+	thiscpu->cpu_ts.ts_ss0 = GD_KD;
+	gdt[(GD_TSS0 >> 3) + thiscpu->cpu_id] = SEG16(
+		STS_T32A, 
+		(uint32_t) (&(thiscpu->cpu_ts)), sizeof(struct Taskstate) - 1, 
+		0
+	);
+	
+	gdt[(GD_TSS0 >> 3) + thiscpu->cpu_id].sd_s = 0;
 	// Load the TSS selector (like other segment selectors, the
 	// bottom three bits are special; we leave them 0)
-	ltr(GD_TSS0);
-
+	ltr(GD_TSS0  + (thiscpu->cpu_id << 3));
 	// Load the IDT
 	lidt(&idt_pd);
 }
@@ -241,6 +238,10 @@ trap(struct Trapframe *tf)
 	if (panicstr)
 		asm volatile("hlt");
 
+	//cprintf("Incoming TRAP frame at %p\n", tf);
+	
+	//cprintf("[%s]\n", trapname(tf->tf_trapno)); 
+	
 	// Re-acqurie the big kernel lock if we were halted in
 	// sched_yield()
 	if (xchg(&thiscpu->cpu_status, CPU_STARTED) == CPU_HALTED)
@@ -250,16 +251,15 @@ trap(struct Trapframe *tf)
 	// the interrupt path.
 	assert(!(read_eflags() & FL_IF));
 
-	cprintf("Incoming TRAP frame at %p\n", tf);
-	
-	cprintf("[%s]\n", trapname(tf->tf_trapno)); 
+
 
 	if ((tf->tf_cs & 3) == 3) {
+		assert(curenv);
 		// Trapped from user mode.
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
 		// LAB 4: Your code here.
-		assert(curenv);
+		lock_kernel();
 
 		// Garbage collect if current enviroment is a zombie
 		if (curenv->env_status == ENV_DYING) {

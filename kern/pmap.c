@@ -689,14 +689,15 @@ mmio_map_region(physaddr_t pa, size_t size)
     
     void * res = (void *) base;
     
-    // TODO this causes the tests to be broken, but its a very logical assert. ask igor about it.
-    //if (pa < npages * PGSIZE - MMIO_SIZE)
-    //    panic("mmio_map_region: attempt to map non-MMIO physical address %p", pa);
-    
     if (ROUNDUP(base + size, PGSIZE) > MMIOLIM)
         panic("mmio_map_region: MMIO virtual region overflowed");
     
-    boot_map_region(kern_pgdir, base, ROUNDUP(size, PGSIZE), pa, PTE_PCD|PTE_PWT|PTE_W);
+    boot_map_region(kern_pgdir, 
+                    base, 
+                    ROUNDUP(size, PGSIZE), 
+                    pa, 
+                    PTE_PCD | PTE_PWT | PTE_W);
+    
     base = ROUNDUP(base + size, PGSIZE);
     return res;
 }
