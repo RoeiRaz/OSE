@@ -340,8 +340,8 @@ page_init(void)
     page_free_list = NULL;
     extern char end[];
     extern char start[];
-	size_t i;
-	for (i = 0; i < npages; i++) {
+    size_t i;
+    for (i = 0; i < npages; i++) {
         physaddr_t paddr = page2pa(&pages[i]);
         
         // First physical page is allocated for IDT and BIOS
@@ -362,6 +362,9 @@ page_init(void)
             && paddr < PADDR(boot_alloc(0)))
             goto in_use;
         
+        // MMIO physical pages
+        if (paddr >= npages * PGSIZE - MMIO_SIZE)
+            goto in_use;
         
         pages[i].pp_ref = 0;
         pages[i].pp_link = page_free_list;
@@ -371,7 +374,7 @@ page_init(void)
     in_use:
         pages[i].pp_ref = 1;
         pages[i].pp_link = NULL;
-	}
+    }
 }
 
 //

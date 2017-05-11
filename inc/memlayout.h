@@ -141,6 +141,9 @@
 // Physical address of startup code for non-boot CPUs (APs)
 #define MPENTRY_PADDR	0x7000
 
+// Size of the mmio block at the end of the physical memory (32 Mb)
+#define MMIO_SIZE 0x01FFFFFF
+
 #ifndef __ASSEMBLER__
 
 typedef uint32_t pte_t;
