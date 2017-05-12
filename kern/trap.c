@@ -298,6 +298,7 @@ page_fault_handler(struct Trapframe *tf)
 {
 	uint32_t fault_va;
 	struct UTrapframe *utf;
+	uintptr_t tt_esp;
 
 	// Read processor's CR2 register to find the faulting address
 	fault_va = rcr2();
@@ -345,13 +346,17 @@ page_fault_handler(struct Trapframe *tf)
 	if (!curenv->env_pgfault_upcall)
 		goto destroy;
 	
+	// Record the trap-time esp, before we ruin it.
+	tt_esp = tf->tf_esp;
+	
+	// Free up a scratch space of 32 bit.
+	tt_esp -= sizeof(uint32_t);
+	tf->tf_esp = tt_esp;
+	
 	// If we are not already in the Xstack, move there.
 	if (tf->tf_esp <= USTACKTOP) {
 		tf->tf_esp = UXSTACKTOP;
 	}
-	
-	// Free up a scratch space of 32 bit. (for return address maybe? idk)
-	tf->tf_esp -= sizeof(uint32_t);
 	
 	// Make room in the Xstack for the UTrapframe struct.
 	tf->tf_esp -= sizeof(struct UTrapframe);
@@ -360,7 +365,7 @@ page_fault_handler(struct Trapframe *tf)
 	utf = (struct UTrapframe *) (tf->tf_esp);
 	
 	// Copy everything we need.
-	utf->utf_esp = tf->tf_esp;
+	utf->utf_esp = tt_esp;
 	utf->utf_eflags = tf->tf_eflags;
 	utf->utf_eip = tf->tf_eip;
 	utf->utf_regs = tf->tf_regs;
