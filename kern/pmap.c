@@ -573,14 +573,13 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	
 	if (pe == NULL)
 		return -E_NO_MEM;
-	
+
 	if (!(pp->pp_ref)++)
 		pp->pp_link = NULL;
-					
-	
+
 	if (*pe & PTE_P)
 		page_remove(pgdir, va);
-	
+
 	pte_set_addr(pe, page2pa(pp));
 	pte_set_flags(pe, PTE_P | perm);
 	
