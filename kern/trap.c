@@ -297,6 +297,7 @@ void
 page_fault_handler(struct Trapframe *tf)
 {
 	uint32_t fault_va;
+	struct UTrapframe *utf;
 
 	// Read processor's CR2 register to find the faulting address
 	fault_va = rcr2();
@@ -341,7 +342,38 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
-
+	if (!curenv->env_pgfault_upcall)
+		goto destroy;
+	
+	// If we are not already in the Xstack, move there.
+	if (tf->tf_esp <= USTACKTOP) {
+		tf->tf_esp = UXSTACKTOP;
+	}
+	
+	// Free up a scratch space of 32 bit. (for return address maybe? idk)
+	tf->tf_esp -= sizeof(uint32_t);
+	
+	// Make room in the Xstack for the UTrapframe struct.
+	tf->tf_esp -= sizeof(struct UTrapframe);
+	
+	// We can access this address because the current pgdir is curenv->env_pgdir.
+	utf = (struct UTrapframe *) (tf->tf_esp);
+	
+	// Copy everything we need.
+	utf->utf_esp = tf->tf_esp;
+	utf->utf_eflags = tf->tf_eflags;
+	utf->utf_eip = tf->tf_eip;
+	utf->utf_regs = tf->tf_regs;
+	utf->utf_err = tf->tf_err;
+	utf->utf_fault_va = fault_va;
+	
+	// Dont forget: actually change EIP to the fault handler!
+	tf->tf_eip = (uintptr_t) curenv->env_pgfault_upcall;
+	
+	// Run the environment
+	env_run(curenv);
+	
+destroy:
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
