@@ -124,7 +124,7 @@ sys_env_set_status(envid_t envid, int status)
 	int error;
 	
 	if (status != ENV_RUNNABLE && status != ENV_NOT_RUNNABLE)
-		return -INVAL;
+		return -E_INVAL;
 	
 	if ((error = envid2env(envid, &e, 1)) < 0)
 		return error;
@@ -175,16 +175,17 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	//   allocated!
 
 	// LAB 4: Your code here.
-	PageInfo *pp;
+	struct PageInfo *pp;
 	struct Env *e;
+	int error;
 	
-	if (va >= UTOP || va % PGSIZE != 0)
+	if ((uintptr_t) va >= UTOP || (uintptr_t) va % PGSIZE != 0)
 		return -E_INVAL;
 	
-	if (perm & (PTE_P | PTE_U) != (PTE_P | PTE_U))
+	if ((perm & (PTE_P | PTE_U)) != (PTE_P | PTE_U))
 		return -E_INVAL;
 	
-	if (perm & (!(PTE_P | PTE_U | PTE_W | PTE_AVAIL)) > 0)
+	if ((perm & (~(PTE_P | PTE_U | PTE_W | PTE_AVAIL))) > 0)
 		return -E_INVAL;
 	
 	if ((error = envid2env(envid, &e, 1)) < 0)

@@ -11,7 +11,7 @@ void sched_halt(void);
 void
 sched_yield(void)
 {
-	struct Env *it;
+	int start, i, index;
 
 	// Implement simple round-robin scheduling.
 	//
@@ -29,38 +29,29 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
-	// TODO something about this logic isn't right....
-	if (curenv == NULL) {
-		for (it = envs; it != NULL; it = it->env_link)
-			if (it->env_status == ENV_RUNNABLE)
-				goto sched_found;
-
-		goto sched_not_found;
+	
+	// This round robin scheduling is done by round-robining the 'envs'
+	// array. we dont care about the environments ids!
+	start = -1;
+	if (curenv != NULL)
+		start = curenv - envs; // it works because of pointer arithmetics
+		
+	for (i = start + 1; i < start + NENV; i++) {
+		// index for 'envs'. we do a cyclic iteration, from 'curenv'
+		// or from the first env if curenv == NULL.
+		index = i % NENV; 
+		
+		// If we found a runnable env, run it. env_run will not return.
+		if (envs[index].env_status == ENV_RUNNABLE)
+			env_run(&envs[index]);
 	}
-
-	// first part of the search.
-	for (it = curenv->env_link; it != NULL; it = it->env_link)
-		if (it->env_status == ENV_RUNNABLE)
-			goto sched_found;
-
-	// second part of the search, exclude curenv
-	for (it = envs; it != curenv; it = it->env_link)
-		if (it->env_status == ENV_RUNNABLE)
-			goto sched_found;
-
-	// check if we can reschedule curenv
-	if (curenv->env_status == ENV_RUNNING) {
-		it = curenv;
-		goto sched_found;
-	}
+	
+	if (start >= 0 && envs[start].env_status == ENV_RUNNING)
+		env_run(&envs[start]);
 
 	// we have nothing to do.
 	// sched_halt never returns
-sched_not_found:
 	sched_halt();
-
-sched_found:
-	env_run(it);
 }
 
 // Halt this CPU when there is nothing to do. Wait until the
