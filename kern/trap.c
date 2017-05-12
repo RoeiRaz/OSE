@@ -353,6 +353,9 @@ page_fault_handler(struct Trapframe *tf)
 	tt_esp -= sizeof(uint32_t);
 	tf->tf_esp = tt_esp;
 	
+	// Put the trap-time eip in the reserved word
+	*(uintptr_t *) tt_esp = tf->tf_eip;
+	
 	// If we are not already in the Xstack, move there.
 	if (tf->tf_esp <= USTACKTOP) {
 		tf->tf_esp = UXSTACKTOP;
