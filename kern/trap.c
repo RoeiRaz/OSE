@@ -346,20 +346,19 @@ page_fault_handler(struct Trapframe *tf)
 	if (!curenv->env_pgfault_upcall)
 		goto destroy;
 	
+	user_mem_assert(curenv, (void *) (UXSTACKTOP - 1), 1, PTE_W);
+	user_mem_assert(curenv, curenv->env_pgfault_upcall, 1, 0);
+	
 	// Record the trap-time esp, before we ruin it.
 	tt_esp = tf->tf_esp;
-	
-	// Free up a scratch space of 32 bit.
-	tt_esp -= sizeof(uint32_t);
-	tf->tf_esp = tt_esp;
-	
-	// Put the trap-time eip in the reserved word
-	*(uintptr_t *) tt_esp = tf->tf_eip;
 	
 	// If we are not already in the Xstack, move there.
 	if (tf->tf_esp <= USTACKTOP) {
 		tf->tf_esp = UXSTACKTOP;
 	}
+	
+	// Free up a scratch space of 32 bit. (only relevant in recursion)
+	tf->tf_esp -= sizeof(uint32_t);
 	
 	// Make room in the Xstack for the UTrapframe struct.
 	tf->tf_esp -= sizeof(struct UTrapframe);

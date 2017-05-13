@@ -240,7 +240,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	struct PageInfo *pp;
 	pte_t *pte;
 	int error;
-
+	
 	//	-E_BAD_ENV if srcenvid and/or dstenvid doesn't currently exist,
 	//		or the caller doesn't have permission to change one of them.
 	if ((error = envid2env(srcenvid, &srcenv, 1)) < 0)

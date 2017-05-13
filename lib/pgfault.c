@@ -25,7 +25,9 @@ void
 set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 {
 	int r;
-
+	// Please don't make any writes here, because after fork this is
+	// the first procedure that the child runs. while he does that,
+	// if he tries to write anything it will generate COW.
 	if (_pgfault_handler == 0) {
 		// First time through!
 		// LAB 4: Your code here.
