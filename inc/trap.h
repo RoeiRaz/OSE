@@ -90,6 +90,7 @@ struct TrapEntry {
 	uint8_t te_num;
 	uint8_t te_cpl;
 	uintptr_t te_addr;
+	uint8_t te_irq;
 } __attribute__((packed));
 
 #endif /* !__ASSEMBLER__ */

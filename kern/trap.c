@@ -81,7 +81,8 @@ trap_init(void)
 	for (; entry->te_addr != 0; entry++) {
 		SETGATE(
 			idt[entry->te_num], 
-			1, 
+			0, // We set all the gates to interrupt gates
+			// in order to disable IF implicitly.
 			GD_KT, 
 			entry->te_addr,
 			entry->te_cpl
@@ -215,7 +216,10 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
-
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
+		lapic_eoi();
+		sched_yield();
+	}
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
@@ -268,7 +272,7 @@ trap(struct Trapframe *tf)
 			sched_yield();
 		}
 		
-                // Copy trap frame (which is currently on the stack)
+		// Copy trap frame (which is currently on the stack)
 		// into 'curenv->env_tf', so that running the environment
 		// will restart at the trap point.
 		curenv->env_tf = *tf;

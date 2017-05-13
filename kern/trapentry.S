@@ -32,6 +32,7 @@
 	.byte num;							\
 	.byte cpl;							\
 	.int name;								\
+	.byte 0;							\
 	.text;
 
 /* Use TRAPHANDLER_NOEC for traps where the CPU doesn't push an error code.
@@ -50,6 +51,24 @@
 	.byte num;							\
 	.byte cpl;							\
 	.int name;								\
+	.byte 0;							\
+	.text;
+	
+/* Use INTHANDLER for interrupts.
+ */
+#define INTHANDLER(name, num, cpl)					\
+	.globl name;							\
+	.type name, @function;						\
+	.align 2;							\
+	name:								\
+	pushl $0;							\
+	pushl $(num);							\
+	jmp _alltraps;							\
+	.data;								\
+	.byte num;							\
+	.byte cpl;							\
+	.int name;								\
+	.byte 1;							\
 	.text;
 
 .data
@@ -89,6 +108,12 @@ TRAPHANDLER_NOEC(t_simderr, T_SIMDERR, 0)
  * Custom Interrupts/Traps (32-254)
 */
 TRAPHANDLER_NOEC(t_syscall, T_SYSCALL, 3)
+INTHANDLER(irq_timer, IRQ_OFFSET + IRQ_TIMER, 0)
+INTHANDLER(irq_kbd, IRQ_OFFSET + IRQ_KBD, 0)
+INTHANDLER(irq_serial, IRQ_OFFSET + IRQ_SERIAL, 0)
+INTHANDLER(irq_spurious, IRQ_OFFSET + IRQ_SPURIOUS, 0)
+INTHANDLER(irq_ide, IRQ_OFFSET + IRQ_IDE, 0)
+INTHANDLER(irq_error, IRQ_OFFSET + IRQ_ERROR, 0)
 
 .data
 
