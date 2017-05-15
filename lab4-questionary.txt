@@ -62,6 +62,11 @@
 ===   (one file per line, relative to lab directory containing .git/)
 inc/env.h
 kern/sched.c
+kern/syscall.c
+inc/syscall.h
+lib/syscall.c
+inc/lib.h
+
 === Q Describe you solution.
 ===   (free form, up to 500 words, don't need to use all 500!)
-Added a priority field (integer) to struct Env in evn.h. The higher this integer is set, the better (the scheduler will pick the enviroment before others). Changed sched_yield to take this into account.
+Added a priority field (integer) to struct Env in evn.h. The higher this integer is set, the better (the scheduler will pick the enviroment before others). Changed sched_yield to take this into account. Added a syscall to change the priority of curenv.
