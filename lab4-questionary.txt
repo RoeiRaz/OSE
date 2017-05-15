@@ -1,0 +1,67 @@
+=== This template file contains questions you need to answer.
+=== Fill your answers on appropriate blank lines only.
+=== Don't start any line with three equal signs "===".
+=== Don't edit any lines starting from three equal signs.
+=== Use C notation to write numbers: 42 for decimal, 0x2a for hexadecimal.
+=== We may check most of the answers automatically, so "forty two" or
+=== "26+16" won't work for this example. Spaces are mostly ignored, so
+=== "  42  " is OK (without quotes of course). 
+=== When asked to specify address & instruction, do it in the form of
+=== gdb output "ADDRESS: INSTRUCTION", for example "0x7c26:  or  $0x1,%eax"
+=== Don't make lines longer than 80 characters. You don't need to fit your
+=== answer in a single line, you can start a new line at will.
+=== However, when asked to fill "a table" make each table raw a singleline.
+
+=== Q Compare kern/mpentry.S side by side with boot/boot.S. Bearing in
+===   mind that kern/mpentry.S is compiled and linked to run above KERNBASE
+===   just like everything else in the kernel, what is the purpose of macro
+===   MPBOOTPHYS? Why is it necessary in kern/mpentry.S but not in
+===   boot/boot.S? In other words, what could go wrong if it were
+===   omitted in kern/mpentry.S?
+===   (free form)
+
+=== Q It seems that using the big kernel lock guarantees that only one
+===   CPU can run the kernel code at a time. Why do we still need
+===   separate kernel stacks for each CPU? Describe a scenario in
+===   which using a shared kernel stack will go wrong, even with the
+===   protection of the big kernel lock.
+===   (free form)
+
+=== Q Whenever the kernel switches from one environment to another, it
+===   must ensure the old environment's registers are saved so they
+===   can be restored properly later. Where does this happen?
+===   (JOS function name)
+
+=== Q In your implementation of env_run() you should have called
+===   lcr3(). Before and after the call to lcr3(), your code makes
+===   references (at least it should) to the variable e, the argument
+===   to env_run. Upon loading the %cr3 register, the addressing
+===   context used by the MMU is instantly changed. But a virtual
+===   address (namely e) has meaning relative to a given address 
+===   context--the address context specifies the physical address to
+===   which the virtual address maps. Why can the pointer e be
+===   dereferenced both before and after the addressing switch?
+===   (one sentence, free form)
+
+=== Q In Ex. 4, what happens if the user environment runs out of
+===   space on the exception stack?
+===   (one setence, free form)
+
+=== Q In dumpfork.c, the first time you call duppage(), the function
+===   allocates a page in one environment (env A) and then maps it in
+===   another (env B). At whataddress is the page mapped in env A, and
+===   at what address is it mapped in env B?
+===   (ADDR(in env A):ADDR(in env B) (example: 0xAAAAAAAA:0xBBBBBBBB)
+
+====================================================================
+=== Q What challenge(s) have you chosen to implement? (specify
+===   challenge numbers separated by spaces, if more than one)
+
+=== Q If the challenge requires changing the kernel source, list the
+===   files which you have changed/added during implementation.
+===   (one file per line, relative to lab directory containing .git/)
+inc/env.h
+kern/sched.c
+=== Q Describe you solution.
+===   (free form, up to 500 words, don't need to use all 500!)
+Added a priority field (integer) to struct Env in evn.h. The higher this integer is set, the better (the scheduler will pick the enviroment before others). Changed sched_yield to take this into account.

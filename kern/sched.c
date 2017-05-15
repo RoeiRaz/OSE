@@ -33,22 +33,29 @@ sched_yield(void)
 	// This round robin scheduling is done by round-robining the 'envs'
 	// array. we dont care about the environments ids!
 	start = -1;
+	struct Env *runme = NULL; // needed for lab4 challenge
 	if (curenv != NULL)
 		start = curenv - envs; // it works because of pointer arithmetics
-		
+
 	for (i = start + 1; i < start + NENV; i++) {
 		// index for 'envs'. we do a cyclic iteration, from 'curenv'
 		// or from the first env if curenv == NULL.
 		index = i % NENV; 
 		
 		// If we found a runnable env, run it. env_run will not return.
-		if (envs[index].env_status == ENV_RUNNABLE)
-			env_run(&envs[index]);
+		if (envs[index].env_status == ENV_RUNNABLE) {
+			if(runme == NULL || envs[index].priority > runme->priority){
+				runme = &envs[index];
+			}
+		}
 	}
 	
-	if (start >= 0 && envs[start].env_status == ENV_RUNNING)
-		env_run(&envs[start]);
-
+	if ((start >= 0 && envs[start].env_status == ENV_RUNNING) && (runme == NULL || envs[start].priority > runme->priority)) {
+			runme = &envs[start];
+	}
+	if (runme)
+		env_run(runme);
+	
 	// we have nothing to do.
 	// sched_halt never returns
 	sched_halt();
