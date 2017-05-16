@@ -43,11 +43,11 @@ trap
 ===   which the virtual address maps. Why can the pointer e be
 ===   dereferenced both before and after the addressing switch?
 ===   (one sentence, free form)
-
+e is mapped to the same place for every enviroment (its mapping remains in all contexts, as is the case with the rest of envs).
 === Q In Ex. 4, what happens if the user environment runs out of
 ===   space on the exception stack?
 ===   (one setence, free form)
-
+the enviroment will be eliminated by the page handler (in 
 === Q In dumpfork.c, the first time you call duppage(), the function
 ===   allocates a page in one environment (env A) and then maps it in
 ===   another (env B). At whataddress is the page mapped in env A, and
