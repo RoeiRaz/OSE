@@ -19,7 +19,7 @@
 ===   boot/boot.S? In other words, what could go wrong if it were
 ===   omitted in kern/mpentry.S?
 ===   (free form)
-
+MPBOOTPHYS(s) calculates s's address, relative to MPENTRY_PADDR - returns the physical address of s. In boot.S, the initial kernel linking sets addresses to be relative to MPENTRY_PADDR, meaning that there the translation isn't needed (and paging isn't enabled yet.
 === Q It seems that using the big kernel lock guarantees that only one
 ===   CPU can run the kernel code at a time. Why do we still need
 ===   separate kernel stacks for each CPU? Describe a scenario in
@@ -47,13 +47,13 @@ e is mapped to the same place for every enviroment (its mapping remains in all c
 === Q In Ex. 4, what happens if the user environment runs out of
 ===   space on the exception stack?
 ===   (one setence, free form)
-the enviroment will be eliminated by the page handler (in 
+the enviroment will be eliminated by the page handler (user_mem_assert will fail)
 === Q In dumpfork.c, the first time you call duppage(), the function
 ===   allocates a page in one environment (env A) and then maps it in
 ===   another (env B). At whataddress is the page mapped in env A, and
 ===   at what address is it mapped in env B?
 ===   (ADDR(in env A):ADDR(in env B) (example: 0xAAAAAAAA:0xBBBBBBBB)
-
+0x00800000:0x00400000
 ====================================================================
 === Q What challenge(s) have you chosen to implement? (specify
 ===   challenge numbers separated by spaces, if more than one)
@@ -70,4 +70,5 @@ inc/lib.h
 lib/fork.c
 === Q Describe you solution.
 ===   (free form, up to 500 words, don't need to use all 500!)
-Implementing a fixed-priority scheuler, we added a priority field (integer) to struct Env in evn.h. The higher this integer is set, the better (the scheduler will pick the enviroment before others). Changed sched_yield to take this into account. Added a syscall to change the priority of curenv (sys_update_priority(int)), and used it in priority_fork(int), which is a copy of fork() that also sets the priority of the child process. A child process gets to run one time until yield, before the calculation of its priority is used.
+Implementing a fixed-priority scheuler, we added a priority field (integer) to struct Env in evn.h. The higher this integer is set, the better (the scheduler will pick the enviroment before others). We changed sched_yield to take this policy into account.
+A syscall was added to change the priority of curenv (sys_update_priority(int)), and was used in priority_fork(int), which is a copy of fork() that also sets the priority of the child process. A child process gets to run one time until yield, before the calculation of its priority is used.
