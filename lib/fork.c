@@ -150,3 +150,50 @@ sfork(void)
 	panic("sfork not implemented");
 	return -E_INVAL;
 }
+
+// Lab 4 Challenge: priority_fork(int) is a copy of fork(void) that also sets the priority of the child process
+envid_t
+priority_fork(int priority)
+{
+	int pid, i;
+	
+	// Assembly language pgfault entrypoint defined in lib/pfentry.S.
+	extern void _pgfault_upcall(void);
+	
+	if ((pid = sys_exofork()) > 0) {
+		// set page fault handler
+		set_pgfault_handler(pgfault);
+		
+		// we must do it in the 'primitive' way, because the forked
+		// child is going to get faulted right when he tries to write
+		// to the stack, meaning he can't call set_pgfault_handler.
+		sys_env_set_pgfault_upcall(pid, _pgfault_upcall);
+		
+		// allocate Xstack for child
+		if(sys_page_alloc(pid, (void *) ROUNDDOWN(UXSTACKTOP - 1, PGSIZE),
+									  PTE_W | PTE_P | PTE_U) < 0)
+			panic("fork: cannot allocate page for Xstack");
+		
+		for (i = 0 ; i < USTACKTOP / PGSIZE; i += 1) {
+			if (! (uvpd[i / NPTENTRIES] & PTE_P))
+				continue;
+			
+			if (! (uvpt[i] & PTE_P))
+				continue;
+			
+			duppage(pid, i);
+		}
+		
+		if(sys_env_set_status(pid, ENV_RUNNABLE) < 0)
+			panic("fork: cannot set child status");
+		
+		return pid;
+		
+	} else {
+		thisenv = &envs[ENVX(sys_getenvid())];
+		//cprintf("setting priority %x\n", priority);
+		sys_update_priority(priority);
+		return 0;
+	}
+}
+

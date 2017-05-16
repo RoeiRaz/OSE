@@ -429,7 +429,8 @@ sys_ipc_recv(void *dstva)
 
 // Lab 4 Challenge:
 // Changing the priority of curenv to @priority
-static int sys_update_priority(int priority){
+static int sys_update_priority(int priority) {
+	// cprintf("sys_update_priority, priority %x\n", priority);
 	curenv->priority = priority;
 	return 0;	
 }
@@ -473,6 +474,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return (int32_t) sys_ipc_try_send((envid_t) a1, a2, (void *) a3, (int) a4);
 	case SYS_ipc_recv:
 		return (int32_t) sys_ipc_recv((void *) a1);
+	case SYS_update_priority:
+		sys_update_priority((int) a1);
+		return 0;
 	default:
 		return -E_NO_SYS;
 	}

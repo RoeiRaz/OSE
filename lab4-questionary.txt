@@ -56,7 +56,7 @@
 ====================================================================
 === Q What challenge(s) have you chosen to implement? (specify
 ===   challenge numbers separated by spaces, if more than one)
-
+2
 === Q If the challenge requires changing the kernel source, list the
 ===   files which you have changed/added during implementation.
 ===   (one file per line, relative to lab directory containing .git/)
@@ -66,7 +66,8 @@ kern/syscall.c
 inc/syscall.h
 lib/syscall.c
 inc/lib.h
+lib/fork.c
 
 === Q Describe you solution.
 ===   (free form, up to 500 words, don't need to use all 500!)
-Added a priority field (integer) to struct Env in evn.h. The higher this integer is set, the better (the scheduler will pick the enviroment before others). Changed sched_yield to take this into account. Added a syscall to change the priority of curenv.
+Implementing a fixed-priority scheuler, we added a priority field (integer) to struct Env in evn.h. The higher this integer is set, the better (the scheduler will pick the enviroment before others). Changed sched_yield to take this into account. Added a syscall to change the priority of curenv (sys_update_priority(int)), and used it in priority_fork(int), which is a copy of fork() that also sets the priority of the child process. A child process gets to run one time until yield, before the calculation of its priority is used.

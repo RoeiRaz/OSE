@@ -77,6 +77,7 @@ envid_t	ipc_find_env(enum EnvType type);
 #define	PTE_SHARE	0x400
 envid_t	fork(void);
 envid_t	sfork(void);	// Challenge!
+envid_t priority_fork(int); // Lab 4 Challenge
 
 
 

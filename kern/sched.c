@@ -40,8 +40,12 @@ sched_yield(void)
 	for (i = start + 1; i < start + NENV; i++) {
 		// index for 'envs'. we do a cyclic iteration, from 'curenv'
 		// or from the first env if curenv == NULL.
-		index = i % NENV; 
-		
+		index = i % NENV;
+		/*
+		if(index < 5) {
+			cprintf("envs[%d].priority = %d, runnable = %x\n", index, envs[index].priority, envs[index].env_status == ENV_RUNNABLE);
+		}
+		*/
 		// If we found a runnable env, run it. env_run will not return.
 		if (envs[index].env_status == ENV_RUNNABLE) {
 			if(runme == NULL || envs[index].priority > runme->priority){
@@ -49,12 +53,14 @@ sched_yield(void)
 			}
 		}
 	}
-	
+	//cprintf("envs[%x].priority = %d, running = %x\n", start, envs[start].priority, envs[start].env_status == ENV_RUNNING);
 	if ((start >= 0 && envs[start].env_status == ENV_RUNNING) && (runme == NULL || envs[start].priority > runme->priority)) {
 			runme = &envs[start];
 	}
-	if (runme)
+	if (runme) {
+		// cprintf("running env with priority %d\n", runme->priority);
 		env_run(runme);
+	}
 	
 	// we have nothing to do.
 	// sched_halt never returns
