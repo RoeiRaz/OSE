@@ -19,15 +19,15 @@
 ===   boot/boot.S? In other words, what could go wrong if it were
 ===   omitted in kern/mpentry.S?
 ===   (free form)
-MPBOOTPHYS(s) calculates s's address, relative to MPENTRY_PADDR - returns the physical address of s. In boot.S, the initial kernel linking sets addresses to be relative to MPENTRY_PADDR, meaning that there the translation isn't needed (and paging isn't enabled yet.
+MPBOOTPHYS(s) returns the physical address of s (calculates s's address, relative to MPENTRY_PADDR). In boot.S, the kernel linking initially sets virtual addresses to be relative to MPENTRY_PADDR, meaning that there the translation isn't needed - paging isn't enabled yet. When protection is enabled, in mpentry.S, all the addresses will be in the userspace virtual memory, and so the macro is necessary.
 === Q It seems that using the big kernel lock guarantees that only one
 ===   CPU can run the kernel code at a time. Why do we still need
 ===   separate kernel stacks for each CPU? Describe a scenario in
 ===   which using a shared kernel stack will go wrong, even with the
 ===   protection of the big kernel lock.
 ===   (free form)
-The kernel stack gets pushed into sometimes, before acquiring the big kernel lock. For example, if we were to use a shared kernel stack, interrupts will mess up other CPUs, because some flags and registers (and tf_err of course) will be pushed to the stack by the hardware (without first getting the kernel lock). The kernel stack also saves the state of a CPU that enters the kernel before the lock is taken. 
-Other CPUs will assume the shared stack is correct, but in actuality it was changed by a different CPU, or the hardware interrupt, without taking the lock.
+The kernel stack gets pushed into before acquiring the big kernel lock sometimes. For example, if we were to use a shared kernel stack, the handling of interrupts will mess up the stack for other CPUs, because certain information will be pushed in by the hardware, without first getting the kernel lock. The kernel stack also saves the state of a CPU that enters the kernel before the lock is taken. 
+Because other CPUs need to assume the shared stack is correct, (even when in actuality it was changed by a different CPU, or the hardware interrupt, without taking the lock), they could load a wrong trap frame, or execute something that doesn't need executing.
 === Q Whenever the kernel switches from one environment to another, it
 ===   must ensure the old environment's registers are saved so they
 ===   can be restored properly later. Where does this happen?
