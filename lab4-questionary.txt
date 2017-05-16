@@ -26,12 +26,13 @@
 ===   which using a shared kernel stack will go wrong, even with the
 ===   protection of the big kernel lock.
 ===   (free form)
-
+The kernel stack gets pushed into sometimes, before acquiring the big kernel lock. For example, if we were to use a shared kernel stack, interrupts will mess up other CPUs, because some flags and registers (and tf_err of course) will be pushed to the stack by the hardware (without first getting the kernel lock). The kernel stack also saves the state of a CPU that enters the kernel before the lock is taken. 
+Other CPUs will assume the shared stack is correct, but in actuality it was changed by a different CPU, or the hardware interrupt, without taking the lock.
 === Q Whenever the kernel switches from one environment to another, it
 ===   must ensure the old environment's registers are saved so they
 ===   can be restored properly later. Where does this happen?
 ===   (JOS function name)
-
+trap
 === Q In your implementation of env_run() you should have called
 ===   lcr3(). Before and after the call to lcr3(), your code makes
 ===   references (at least it should) to the variable e, the argument
@@ -67,7 +68,6 @@ inc/syscall.h
 lib/syscall.c
 inc/lib.h
 lib/fork.c
-
 === Q Describe you solution.
 ===   (free form, up to 500 words, don't need to use all 500!)
 Implementing a fixed-priority scheuler, we added a priority field (integer) to struct Env in evn.h. The higher this integer is set, the better (the scheduler will pick the enviroment before others). Changed sched_yield to take this into account. Added a syscall to change the priority of curenv (sys_update_priority(int)), and used it in priority_fork(int), which is a copy of fork() that also sets the priority of the child process. A child process gets to run one time until yield, before the calculation of its priority is used.
