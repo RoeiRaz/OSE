@@ -118,7 +118,7 @@ umain(int argc, char **argv)
 
 		// Fault at UTEMP
 		"\t0: movl $42, 0x400000\n"
-
+		
 		// Save after registers (except eip and eflags)
 		SAVE_REGS("%1")
 		// Restore registers (except eip and eflags).  This

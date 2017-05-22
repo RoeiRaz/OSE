@@ -119,7 +119,15 @@ env_init(void)
 {
 	// Set up envs array
 	// LAB 3: Your code here.
-
+    int i;
+    struct Env *next_env = NULL;
+    
+    for (i = NENV - 1; i >= 0; i--) {
+        envs[i].env_link = next_env;
+        next_env = &envs[i];
+    }
+    
+    env_free_list = envs;
 	// Per-CPU part of the initialization
 	env_init_percpu();
 }
@@ -159,6 +167,7 @@ static int
 env_setup_vm(struct Env *e)
 {
 	int i;
+    pde_t *pde;
 	struct PageInfo *p = NULL;
 
 	// Allocate a page for the page directory
@@ -182,11 +191,13 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
-
+    e->env_pgdir = page2kva(p);
+    for (i = 0; i <= 0xFFFFFFFF - UTOP; i += PTSIZE) {
+        e->env_pgdir[PDX(UTOP + i)] = kern_pgdir[PDX(UTOP + i)];
+    }
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
-
 	return 0;
 }
 
@@ -247,6 +258,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
+	e->env_tf.tf_eflags |= FL_IF;
 
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
@@ -279,6 +291,39 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
+	unsigned first_page, page, last_page;
+	uintptr_t page_addr;
+	struct PageInfo *pp;
+	
+	if ((uintptr_t) va + len >= UTOP)
+        panic("region_alloc: trying to allocate over UTOP");
+
+	// TODO corner cases??
+	
+	page = first_page = ROUNDDOWN((uintptr_t) va, PGSIZE) / PGSIZE;
+	last_page = ROUNDDOWN(len + (uintptr_t) va, PGSIZE) / PGSIZE;
+    
+    while(page <= last_page) {
+		
+		page_addr = page * PGSIZE;
+		
+		pp = page_alloc(ALLOC_ZERO);
+		
+		if (pp == NULL)
+			panic("Page allocation failed.");
+		
+		pte_t *pte = pgdir_walk(e->env_pgdir, (void *) page_addr, 0);
+		if (pte != NULL && *pte & PTE_P)
+			panic("Address is already mapped");
+		
+		if (page_insert(e->env_pgdir, pp, (void *) page_addr, PTE_U | PTE_W) < 0)
+			panic("page_insert fault");
+		
+		tlb_invalidate(e->env_pgdir, (void *) page_addr);
+		
+		page++;
+	}
+    
 }
 
 //
@@ -335,11 +380,40 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
-
+	struct Elf *elf;
+	struct Proghdr *ph, *eph;
+	struct Secthdr *sh;
+	
+	elf = (struct Elf *) binary;
+	
+	if (elf->e_magic != ELF_MAGIC)
+		panic("Binary corrupted: does not contain a valid ELF magic.");
+	
+	physaddr_t prev_cr3 = rcr3();
+	lcr3(PADDR(e->env_pgdir));
+	
+	ph = (struct Proghdr *) (binary + elf->e_phoff);
+	eph = ph + elf->e_phnum;
+	
+	for (; ph < eph; ph++) {
+		if (ph->p_type != ELF_PROG_LOAD)
+			continue;
+		region_alloc(e, (uint8_t *) ph->p_va, ph->p_memsz);
+		memcpy((uint8_t *) ph->p_va, binary + ph->p_offset, ph->p_filesz);
+	}
+	
+	lcr3(prev_cr3);
+	
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
 	// LAB 3: Your code here.
+	
+	region_alloc(e, (uint8_t *) (USTACKTOP - PGSIZE), PGSIZE);
+	
+	// set trapframe registers to allow for correct entry
+	e->env_tf.tf_eip = elf->e_entry;
+	e->env_tf.tf_esp = USTACKTOP;
 }
 
 //
@@ -353,6 +427,14 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
+	struct Env *e;
+	
+	if (env_alloc(&e, 0) < 0)
+		panic ("env_alloc faulted");
+	
+	e->env_type = type;
+	
+	load_icode(e, binary);
 
 	// If this is the file server (type == ENV_TYPE_FS) give it I/O privileges.
 	// LAB 5: Your code here.
@@ -447,7 +529,7 @@ env_pop_tf(struct Trapframe *tf)
 {
 	// Record the CPU we are running on for user-space debugging
 	curenv->env_cpunum = cpunum();
-
+	
 	__asm __volatile("movl %0,%%esp\n"
 		"\tpopal\n"
 		"\tpopl %%es\n"
@@ -486,6 +568,22 @@ env_run(struct Env *e)
 
 	// LAB 3: Your code here.
 
+	if (curenv && e->env_id == curenv->env_id)
+		goto env_run_no_cs;
+	
+	if (curenv && curenv->env_status == ENV_RUNNING)
+		curenv->env_status = ENV_RUNNABLE;
+	
+	curenv = e;
+	curenv->env_status = ENV_RUNNING;
+	curenv->env_runs++;
+	
+	lcr3(PADDR(curenv->env_pgdir));
+	
+env_run_no_cs:
+	unlock_kernel();
+	env_pop_tf(&curenv->env_tf);
+	
 	panic("env_run not yet implemented");
 }
 

@@ -25,11 +25,19 @@ void
 set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 {
 	int r;
-
+	// Please don't make any writes here, because after fork this is
+	// the first procedure that the child runs. while he does that,
+	// if he tries to write anything it will generate COW.
 	if (_pgfault_handler == 0) {
 		// First time through!
 		// LAB 4: Your code here.
-		panic("set_pgfault_handler not implemented");
+		if((r = sys_page_alloc(0, (void *) ROUNDDOWN(UXSTACKTOP - 1, PGSIZE), PTE_P | PTE_W | PTE_U)) < 0) {
+			cprintf("error: %e\n", r);
+			panic("set_pgfault_handler error");
+		}
+		sys_env_set_pgfault_upcall(0, _pgfault_upcall);
+		
+		//panic("set_pgfault_handler not implemented");
 	}
 
 	// Save handler pointer for assembly to call.

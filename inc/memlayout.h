@@ -92,10 +92,19 @@
 #define IOPHYSMEM	0x0A0000
 #define EXTPHYSMEM	0x100000
 
-// Kernel stack.
+// Kernel stack for CPU 0.
 #define KSTACKTOP	KERNBASE
 #define KSTKSIZE	(8*PGSIZE)   		// size of a kernel stack
 #define KSTKGAP		(8*PGSIZE)   		// size of a kernel stack guard
+
+// Kernel stack for general CPU n.
+#define KSTACKTOPN(n) ({\
+	if (n >= NCPU) {\
+		panic("KSTACKTOPN: cpu doesn't exists");\
+		-1;\
+	}\
+	KSTACKTOP - (KSTKSIZE + KSTKGAP) * n;\
+})
 
 // Memory-mapped IO.
 #define MMIOLIM		(KSTACKTOP - PTSIZE)
@@ -140,6 +149,9 @@
 
 // Physical address of startup code for non-boot CPUs (APs)
 #define MPENTRY_PADDR	0x7000
+
+// Size of the mmio block at the end of the physical memory (32 Mb)
+#define MMIO_SIZE 0x01FFFFFF
 
 #ifndef __ASSEMBLER__
 

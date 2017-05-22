@@ -33,8 +33,19 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
+	// align to page
+	addr = (void *) ROUNDDOWN((uintptr_t) addr, PGSIZE);
+	
+	if (!(err & FEC_WR) || ! (uvpt[(uintptr_t) addr / PGSIZE] & PTE_COW))
+		panic("pgfault on non-COW page.");
 
-	panic("pgfault not implemented");
+	if ((r = sys_page_alloc(0, PFTEMP, PTE_P | PTE_U | PTE_W)) < 0)
+		panic("pgfault handler couldn't allocate temporary page");
+
+	memmove((void *) PFTEMP, ROUNDDOWN(addr, PGSIZE), PGSIZE);
+
+	if ((r = sys_page_map(0, (void *) PFTEMP, 0, addr, PTE_P | PTE_U | PTE_W)) < 0)
+		panic("pgfault handler couldn't remap the address : %e", r);
 }
 
 //
@@ -52,9 +63,24 @@ static int
 duppage(envid_t envid, unsigned pn)
 {
 	int r;
-
+	
+	
 	// LAB 4: Your code here.
-	panic("duppage not implemented");
+	r = PTE_U | PTE_P;
+	
+	// Check if the page should be COW
+	if ((uvpt[pn] & (PTE_W | PTE_COW)) > 0)
+		r |= PTE_COW;
+	
+	// Map child
+	if(sys_page_map(0, (void *) (pn * PGSIZE), envid, (void *) (pn * PGSIZE), r) < 0)
+		panic("duppage cannot map new page");
+	
+	// Remap current mapping
+	if(sys_page_map(envid, (void *) (pn * PGSIZE), 0, (void *) (pn * PGSIZE),r) < 0)
+		panic("duppage cannot remap old page");
+	
+	
 	return 0;
 }
 
@@ -77,8 +103,44 @@ duppage(envid_t envid, unsigned pn)
 envid_t
 fork(void)
 {
-	// LAB 4: Your code here.
-	panic("fork not implemented");
+	int pid, i;
+	
+	// Assembly language pgfault entrypoint defined in lib/pfentry.S.
+	extern void _pgfault_upcall(void);
+	
+	if ((pid = sys_exofork()) > 0) {
+		// set page fault handler
+		set_pgfault_handler(pgfault);
+		
+		// we must do it in the 'primitive' way, because the forked
+		// child is going to get faulted right when he tries to write
+		// to the stack, meaning he can't call set_pgfault_handler.
+		sys_env_set_pgfault_upcall(pid, _pgfault_upcall);
+		
+		// allocate Xstack for child
+		if(sys_page_alloc(pid, (void *) ROUNDDOWN(UXSTACKTOP - 1, PGSIZE),
+									  PTE_W | PTE_P | PTE_U) < 0)
+			panic("fork: cannot allocate page for Xstack");
+		
+		for (i = 0 ; i < USTACKTOP / PGSIZE; i += 1) {
+			if (! (uvpd[i / NPTENTRIES] & PTE_P))
+				continue;
+			
+			if (! (uvpt[i] & PTE_P))
+				continue;
+			
+			duppage(pid, i);
+		}
+		
+		if(sys_env_set_status(pid, ENV_RUNNABLE) < 0)
+			panic("fork: cannot set child status");
+		
+		return pid;
+		
+	} else {
+		thisenv = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
 }
 
 // Challenge!
