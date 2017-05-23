@@ -220,7 +220,7 @@ serve_read(envid_t envid, union Fsipc *ipc)
 	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
 		return r;
 	
-	if ((b = file_read(o->o_file, ret->ret_buf, req->req_n, o->o_fd->fd_offset)) < 0)
+	if ((b = file_read(o->o_file, ret->ret_buf, MIN(req->req_n, PGSIZE), o->o_fd->fd_offset)) < 0)
 		return b;
 	
 	o->o_fd->fd_offset += b;
@@ -235,11 +235,23 @@ serve_read(envid_t envid, union Fsipc *ipc)
 int
 serve_write(envid_t envid, struct Fsreq_write *req)
 {
+	struct OpenFile *o;
+	int r;
+	int b;
+	
 	if (debug)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+		return r;
+	
+	if ((b = file_write(o->o_file, req->req_buf, MIN(req->req_n, sizeof(req->req_buf)), o->o_fd->fd_offset)) < 0)
+		return b;
+	
+	o->o_fd->fd_offset += b;
+	
+	return b;
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
