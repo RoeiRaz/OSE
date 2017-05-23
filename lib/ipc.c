@@ -27,7 +27,6 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 	
 	if (pg == 0)
 		pg = (void *) UTOP;
-	
 	if ((error = sys_ipc_recv(pg)) < 0) {
 		if (from_env_store)
 			*from_env_store = 0;
@@ -37,7 +36,6 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 		
 		return error;
 	}
-	
 	if (from_env_store)
 		*from_env_store = thisenv->env_ipc_from;
 	

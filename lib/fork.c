@@ -25,7 +25,11 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
-
+	addr = (void *) ROUNDDOWN((uintptr_t) addr, PGSIZE);
+	
+	if (!(err & FEC_WR) || ! (uvpt[(uintptr_t) addr / PGSIZE] & PTE_COW))
+		panic("pgfault on non-COW page.");
+	
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
 	// page to the old page's address.
@@ -34,11 +38,6 @@ pgfault(struct UTrapframe *utf)
 
 	// LAB 4: Your code here.
 	// align to page
-	addr = (void *) ROUNDDOWN((uintptr_t) addr, PGSIZE);
-	
-	if (!(err & FEC_WR) || ! (uvpt[(uintptr_t) addr / PGSIZE] & PTE_COW))
-		panic("pgfault on non-COW page.");
-
 	if ((r = sys_page_alloc(0, PFTEMP, PTE_P | PTE_U | PTE_W)) < 0)
 		panic("pgfault handler couldn't allocate temporary page");
 
@@ -68,16 +67,28 @@ duppage(envid_t envid, unsigned pn)
 	// LAB 4: Your code here.
 	r = PTE_U | PTE_P;
 	
+	// Assert that a page is not COW and also shared.
+	assert(! ((uvpt[pn] & PTE_SHARE) && (uvpt[pn] & PTE_COW)));
+	
 	// Check if the page should be COW
-	if ((uvpt[pn] & (PTE_W | PTE_COW)) > 0)
+	if ((uvpt[pn] & (PTE_W | PTE_COW)) && ! (uvpt[pn] & PTE_SHARE))
 		r |= PTE_COW;
 	
+	if ((uvpt[pn] & PTE_SHARE))
+		r |= PTE_SHARE;
+	
+	// Return write permission if page is shared
+	if ((uvpt[pn] & PTE_W) && (uvpt[pn] & PTE_SHARE))
+		r |= PTE_W;
+	
+	
+	
 	// Map child
-	if(sys_page_map(0, (void *) (pn * PGSIZE), envid, (void *) (pn * PGSIZE), r) < 0)
+	if (sys_page_map(0, (void *) (pn * PGSIZE), envid, (void *) (pn * PGSIZE), r) < 0)
 		panic("duppage cannot map new page");
 	
 	// Remap current mapping
-	if(sys_page_map(envid, (void *) (pn * PGSIZE), 0, (void *) (pn * PGSIZE),r) < 0)
+	if (sys_page_map(envid, (void *) (pn * PGSIZE), 0, (void *) (pn * PGSIZE), r) < 0)
 		panic("duppage cannot remap old page");
 	
 	
@@ -107,8 +118,10 @@ fork(void)
 	
 	// Assembly language pgfault entrypoint defined in lib/pfentry.S.
 	extern void _pgfault_upcall(void);
+	if ((pid = sys_exofork()) < 0)
+		panic("cannot fork: %e", pid);
 	
-	if ((pid = sys_exofork()) > 0) {
+	if (pid > 0) {
 		// set page fault handler
 		set_pgfault_handler(pgfault);
 		

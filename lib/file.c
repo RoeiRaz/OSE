@@ -20,10 +20,8 @@ fsipc(unsigned type, void *dstva)
 		fsenv = ipc_find_env(ENV_TYPE_FS);
 
 	static_assert(sizeof(fsipcbuf) == PGSIZE);
-
 	if (debug)
 		cprintf("[%08x] fsipc %d %08x\n", thisenv->env_id, type, *(uint32_t *)&fsipcbuf);
-
 	ipc_send(fsenv, type, &fsipcbuf, PTE_P | PTE_W | PTE_U);
 	return ipc_recv(NULL, dstva, NULL);
 }
@@ -67,7 +65,6 @@ open(const char *path, int mode)
 	// Return the file descriptor index.
 	// If any step after fd_alloc fails, use fd_close to free the
 	// file descriptor.
-
 	int r;
 	struct Fd *fd;
 
@@ -76,15 +73,12 @@ open(const char *path, int mode)
 
 	if ((r = fd_alloc(&fd)) < 0)
 		return r;
-
 	strcpy(fsipcbuf.open.req_path, path);
 	fsipcbuf.open.req_omode = mode;
-
 	if ((r = fsipc(FSREQ_OPEN, fd)) < 0) {
 		fd_close(fd, 0);
 		return r;
 	}
-
 	return fd2num(fd);
 }
 

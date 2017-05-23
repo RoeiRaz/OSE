@@ -84,11 +84,9 @@ spawn(const char *prog, const char **argv)
 	//     correct initial eip and esp values in the child.
 	//
 	//   - Start the child process running with sys_env_set_status().
-
 	if ((r = open(prog, O_RDONLY)) < 0)
 		return r;
 	fd = r;
-
 	// Read elf header
 	elf = (struct Elf*) elf_buf;
 	if (readn(fd, elf_buf, sizeof(elf_buf)) != sizeof(elf_buf)
@@ -301,6 +299,30 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
+	int i, r;
+	cprintf("copy_shared_pages(%x);\n", child);
+	
+	for (i = 0 ; i < USTACKTOP / PGSIZE; i += 1) {
+		// We want to make sure the page table exists
+		if (! (uvpd[i / NPTENTRIES] & PTE_P))
+			continue;
+		
+		// Make sure the PTE exists
+		if (! (uvpt[i] & PTE_P))
+			continue;
+		
+		// If the PTE isn't shared, it should not be mapped
+		if (! (uvpt[i] & PTE_SHARE))
+			continue;
+		
+		// Handle PTE flags
+		assert(uvpt[i] & PTE_U);
+		r = PTE_FLAGS(uvpt[i]) & PTE_SYSCALL;
+		
+		// Map page
+		if((r = sys_page_map(0, (void *) (i * PGSIZE), child, (void *) (i * PGSIZE), r)) < 0)
+			panic("cannot map page: %e", r);
+	}
 	return 0;
 }
 
