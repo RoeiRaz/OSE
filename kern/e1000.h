@@ -14,7 +14,7 @@ int e1000_attachfn(struct pci_func *pcif);
 /**
  * Device constants
  */
-#define E1000_VENDOR_ID         (0x8086) // noice
-#define E1000_PRODUCT_ID        (0x100e) // this is really cool
+#define E1000_VENDOR_ID         (0x8086)
+#define E1000_PRODUCT_ID        (0x100e)
 
 #endif	// JOS_KERN_E1000_H
