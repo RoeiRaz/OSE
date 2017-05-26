@@ -19,6 +19,6 @@ int e1000_attachfn(struct pci_func *pcif) {
     if ((e1000_addr = mmio_map_region(pcif->reg_base[0], pcif->reg_size[0])) == NULL)
         panic("e1000 failed to map device into memory (MMIO)");
     
-    cprintf("GARBAGE? OR LAUGAGE?! - E1000 says: %x\n", e1000_addr[2]);
+    cprintf("Assert.equals(0x%x, 0x80080783)\n", e1000_addr[2]);
     return 0;
 }
