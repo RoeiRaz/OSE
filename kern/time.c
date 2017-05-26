@@ -16,7 +16,7 @@ time_tick(void)
 {
 	ticks++;
 	if (ticks * 10 < ticks)
-		panic("time_tick: time overflowed");
+		panic("time_tick: time overflowed"); //are you kidding me
 }
 
 unsigned int
