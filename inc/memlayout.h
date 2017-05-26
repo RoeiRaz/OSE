@@ -151,7 +151,7 @@
 #define MPENTRY_PADDR	0x7000
 
 // Size of the mmio block at the end of the physical memory (32 Mb)
-#define MMIO_SIZE 0x01FFFFFF
+// #define MMIO_SIZE 0x01FFFFFF //this is irrelevant
 
 #ifndef __ASSEMBLER__
 

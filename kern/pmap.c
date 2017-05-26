@@ -343,6 +343,7 @@ page_init(void)
 	// Change the code to reflect this.
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
+    
     page_free_list = NULL;
     extern char end[];
     extern char start[];
@@ -372,9 +373,9 @@ page_init(void)
             && paddr < PADDR(boot_alloc(0)))
             goto in_use;
         
-        // MMIO physical pages
-        if (paddr >= npages * PGSIZE - MMIO_SIZE)
-            goto in_use;
+//         MMIO physical pages
+//         if (paddr >= npages * PGSIZE - MMIO_SIZE)
+//             goto in_use;
         
         pages[i].pp_ref = 0;
         pages[i].pp_link = page_free_list;
