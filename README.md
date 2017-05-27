@@ -1,1 +1,3 @@
-[![JIRA sprint completion](https://img.shields.io/jira/sprint/https/jira.spring.io/94.svg?style=flat-square)]()
+# BOS - JOS Fork
+
+[![Score](https://img.shields.io/badge/Tests%20score-35%2F100-yellow.svg?style=flat-square)]()
