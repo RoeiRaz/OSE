@@ -478,12 +478,10 @@ sys_time_msec(void)
 //
 // return 0 on success, < 0 on error.
 // -E_INVAL if the length of the packet over the Ethernet packet size limit.
-// -E1000_E_RING_FULL if there is no free descriptor for the transmission.
+// -E_RING_FULL if there is no free descriptor for the transmission.
 static int
 sys_e1000_transmit(char *packet, size_t len) {
     int r;
-    
-    cprintf("packet: %x, len: %x\n", packet, len);
     
     user_mem_assert(curenv, packet, len, PTE_U);
     
@@ -491,6 +489,23 @@ sys_e1000_transmit(char *packet, size_t len) {
         return -E_INVAL;
     
     if ((r = e1000_transmit(packet, len)) < 0)
+        return r;
+    
+    return 0;
+}
+
+// Receives a raw single packet from the e1000 device.
+//
+// return 0 on success, < 0 on error.
+// -E_INVAL if the length of the supplied buffer is not big enough.
+// -E_RING_EMPTY if no packet are waiting to be received.
+static int 
+sys_e1000_receive(char *buffer, size_t len) {
+    int r;
+    
+    user_mem_assert(curenv, buffer, len, PTE_U | PTE_W);
+    
+    if ((r = e1000_receive(buffer, len)) < 0)
         return r;
     
     return 0;
@@ -541,6 +556,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
         return (int32_t) sys_time_msec();
     case SYS_e1000_transmit:
         return (int32_t) sys_e1000_transmit((char *) a1, (size_t) a2);
+    case SYS_e1000_receive:
+        return (int32_t) sys_e1000_receive((char *) a1, (size_t) a2);
 	default:
 		return -E_INVAL;
 	}

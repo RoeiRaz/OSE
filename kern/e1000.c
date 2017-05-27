@@ -156,6 +156,15 @@ e1000_rx_step() {
     e1000_rx_desc_array[rx_idx].status &= ~E1000_RXD_STAT_DD;
 }
 
+/*
+ * Returns pointer to the next rx entry.
+ * Used to check if there is awaiting packet for receiving.
+ */
+static struct e1000_rx_desc *
+e1000_rx_follow() {
+   return &e1000_rx_desc_array[(e1000r(E1000_RDT) + 1) % E1000_NUM_RX_DESC];
+}
+
 /**
  * initialize the trasmit descriptor in index i.
  * points to the corresponding buffer, set the correct length,
@@ -291,7 +300,7 @@ e1000_receive_initialization() {
 /* 
  * Trasmits a packet. TODO: alpha version
  * returns 0 on success
- * returns -E1000_E_RING_FUL if the queue is full
+ * returns -E1000_E_RING_FULL if the queue is full
  */
 int 
 e1000_transmit(char *packet, size_t length) {
@@ -321,6 +330,37 @@ e1000_transmit(char *packet, size_t length) {
     
     // Beam me up, scotty 
     e1000_tx_step();
+    
+    return 0;
+}
+
+/**
+ * Receives a packet. TODO: alpha version
+ * Returns 0 on success.
+ * Returns -E_INVAL if the passed buffer is not big enough.
+ * Returns -E_RING_EMPTY if the queue is empty.
+ */
+int
+e1000_receive(char *packet, size_t len) {
+    struct e1000_rx_desc *rx_desc;
+    int rx_idx;
+    
+    if (len < E1000_RECEIVE_PACKET_SIZE)
+        return -E_INVAL;
+    
+    // read the next receeive descriptor
+    rx_desc = e1000_rx_follow();
+    rx_idx = rx_desc - e1000_rx_desc_array;
+    
+    // Checkc if the ring is empty
+    if (! (rx_desc->status & E1000_RXD_STAT_DD))
+        return -E_RING_EMPTY;
+    
+    // Move the packet to the user buffer
+    memmove(packet, &e1000_rx_packet_buffers[rx_idx], E1000_RECEIVE_PACKET_SIZE);
+    
+    // TODO catch phrase
+    e1000_rx_step();
     
     return 0;
 }

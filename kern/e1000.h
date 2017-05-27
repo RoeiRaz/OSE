@@ -24,6 +24,7 @@ struct e1000_status_t {
 
 int e1000_attachfn(struct pci_func *pcif);
 int e1000_transmit(char *packet, size_t length);
+int e1000_receive(char *packet, size_t len);
 void e1000_read_status(struct e1000_status_t *e1000_status);
 
 
