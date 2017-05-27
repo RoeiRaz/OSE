@@ -7,10 +7,11 @@
 #include <inc/string.h>
 #include <inc/x86.h>
 #include <inc/assert.h>
+#include <inc/error.h>
 
 #define E1000_NUM_TX_DESC   (8 * 4)     // must be less than/equal 64 for tests
                                         //to be effective. must be multiple of 8.
-#define ETH_MAX_PACKET_SIZE 1518        // size of ethernet packet, in bytes
+
 
 /**
  * MMIU addresses and metadata.
@@ -173,12 +174,15 @@ e1000_transmit_initialization() {
 
 /* 
  * Trasmits a packet. TODO: alpha version
+ * returns 0 on success
+ * returns -E1000_E_RING_FUL if the queue is full
  */
 int 
 e1000_transmit(char *packet, size_t length) {
     struct e1000_tx_desc *tx_desc;
     int tx_index;
     
+    // We currently don't allow packets bigger than the size specified by Ethernet.
     assert(length < ETH_MAX_PACKET_SIZE);
     
     // get current tx descriptor and descriptor index
@@ -188,13 +192,16 @@ e1000_transmit(char *packet, size_t length) {
     // check if the current tx descriptor isn't taken. if
     // it does, drop the packet. TODO require upgrade.
     if (! (tx_desc->upper.fields.status & E1000_TXD_STAT_DD))
-        return -1;
+        return -E1000_E_RING_FULL;
     
     // move the packet into the reserved space (so DMA wont cause race conditions?)
     memmove(&e1000_tx_packet_buffers[tx_index], packet, length);
     
-    // set 'end of packet' TODO remember to do this only for the last descriptor of the packet.
+    // set 'end of packet' so that E1000 will actually send it
     e1000_tx_desc_array[tx_index].lower.data |= E1000_TXD_CMD_EOP;
+    
+    // set the length of the packet in the descriptor
+    e1000_tx_desc_array[tx_index].lower.flags.length = length;
     
     // Beam me up, scotty 
     e1000_tx_step();
@@ -265,7 +272,7 @@ e1000_attachfn(struct pci_func *pcif) {
         Surrender\
         But don't give yourself away\
         Hey, heeeeeey";
-    e1000_transmit(Surrender, 1024);
+    //e1000_transmit(Surrender, 1024); //TODO
     return 0;
 }
 

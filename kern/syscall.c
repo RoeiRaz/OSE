@@ -12,6 +12,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -473,6 +474,28 @@ sys_time_msec(void)
 	return time_msec();
 }
 
+// Transmits a raw single packet from the e1000 device.
+//
+// return 0 on success, < 0 on error.
+// -E_INVAL if the length of the packet over the Ethernet packet size limit.
+// -E1000_E_RING_FULL if there is no free descriptor for the transmission.
+static int
+sys_e1000_transmit(char *packet, size_t len) {
+    int r;
+    
+    cprintf("packet: %x, len: %x\n", packet, len);
+    
+    user_mem_assert(curenv, packet, len, PTE_U);
+    
+    if (len >= ETH_MAX_PACKET_SIZE)
+        return -E_INVAL;
+    
+    if ((r = e1000_transmit(packet, len)) < 0)
+        return r;
+    
+    return 0;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -516,6 +539,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return (int32_t) sys_env_set_trapframe((envid_t) a1, (struct Trapframe *) a2);
     case SYS_time_msec:
         return (int32_t) sys_time_msec();
+    case SYS_e1000_transmit:
+        return (int32_t) sys_e1000_transmit((char *) a1, (size_t) a2);
 	default:
 		return -E_INVAL;
 	}
