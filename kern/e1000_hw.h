@@ -716,6 +716,7 @@ struct e1000_tx_desc {
 #define E1000_TCTL_BCE    0x00000004    /* busy check enable */
 #define E1000_TCTL_PSP    0x00000008    /* pad short packets */
 #define E1000_TCTL_CT     0x00000ff0    /* collision threshold */
+#define E1000_TCTL_COLD_OFFSET    12    /* collision distance [student]*/
 #define E1000_TCTL_COLD   0x003ff000    /* collision distance */
 #define E1000_TCTL_SWXOFF 0x00400000    /* SW Xoff transmission */
 #define E1000_TCTL_PBE    0x00800000    /* Packet Burst Enable */
@@ -857,6 +858,14 @@ struct e1000_data_desc {
 
 #define E1000_MANC_SMB_DATA_OUT_SHIFT  28 /* SMBus Data Out Shift */
 #define E1000_MANC_SMB_CLK_OUT_SHIFT   29 /* SMBus Clock Out Shift */
+
+/* TIPG */
+#define E1000_TIPG_IPGT          0x000003FF /* IPG Transmit Time */
+#define E1000_TIPG_IPGT_OFFSET   (0)
+#define E1000_TIPG_IPGR1         0x000FFC00 /* IPG Receive Time 1 */
+#define E1000_TIPG_IPGR1_OFFSET  (10)
+#define E1000_TIPG_IPGR2         0x3FF00000 /* IPG Receive Time 1 */
+#define E1000_TIPG_IPGR2_OFFSET  (20)
 
 /* For checksumming, the sum of all words in the EEPROM should equal 0xBABA. */
 #define EEPROM_SUM 0xBABA
