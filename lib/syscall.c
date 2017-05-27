@@ -128,3 +128,9 @@ sys_e1000_transmit(char *packet, size_t len)
 {
 	return syscall(SYS_e1000_transmit, 1, (uint32_t) packet, len, 0, 0, 0);
 }
+
+int
+sys_e1000_receive(char *buffer, size_t len)
+{
+    return syscall(SYS_e1000_receive, 1, (uint32_t) buffer, len, 0, 0, 0);
+}

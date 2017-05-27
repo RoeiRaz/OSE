@@ -28,6 +28,7 @@ enum {
     
     // E1000 errors
     E_RING_FULL,
+    E_RING_EMPTY,
 
 	MAXERROR
 };
