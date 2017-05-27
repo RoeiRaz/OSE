@@ -192,7 +192,7 @@ e1000_transmit(char *packet, size_t length) {
     // check if the current tx descriptor isn't taken. if
     // it does, drop the packet. TODO require upgrade.
     if (! (tx_desc->upper.fields.status & E1000_TXD_STAT_DD))
-        return -E1000_E_RING_FULL;
+        return -E_RING_FULL;
     
     // move the packet into the reserved space (so DMA wont cause race conditions?)
     memmove(&e1000_tx_packet_buffers[tx_index], packet, length);

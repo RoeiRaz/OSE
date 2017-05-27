@@ -9,6 +9,7 @@ output(envid_t ns_envid)
 {
     envid_t envid;
     int value;
+    int r;
     
     
 	binaryname = "ns_output";
@@ -29,6 +30,11 @@ output(envid_t ns_envid)
             continue;
         
         // beam me up, Scotty
-        sys_e1000_transmit(nsipcbuf.pkt.jp_data, nsipcbuf.pkt.jp_len);
+        while ((r = sys_e1000_transmit(nsipcbuf.pkt.jp_data, nsipcbuf.pkt.jp_len)) < 0) {
+            if (r != -E_RING_FULL)
+                panic("net/output: transmit error");
+            
+            sys_yield();
+        }
     }
 }
