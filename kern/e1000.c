@@ -9,8 +9,12 @@
 #include <inc/assert.h>
 #include <inc/error.h>
 
+#define CACHE_LINE_SIZE (128)
+
 #define E1000_NUM_TX_DESC   (8 * 4)     // must be less than/equal 64 for tests
                                         //to be effective. must be multiple of 8.
+                                        
+#define E1000_NUM_RX_DESC   (8 * 16)     // atleast 128. must be multiple of 8.                                        
 
 
 /**
@@ -28,9 +32,31 @@ struct e1000_tx_desc
 e1000_tx_desc_array[E1000_NUM_TX_DESC] 
 __attribute__ ((aligned (PGSIZE)));
 
-// Reserved buffers for packets
-// TODO are 2d arrays in embeded/kernel programming a bad practice?
-char e1000_tx_packet_buffers[E1000_NUM_TX_DESC][ETH_MAX_PACKET_SIZE];
+// Receive descriptor array, aligned to page (thus also aligned to 16bytes)
+// Note that E1000 reads *physical* addresses.
+// Should be zeroed on initialization.
+struct e1000_rx_desc 
+e1000_rx_desc_array[E1000_NUM_RX_DESC] 
+__attribute__ ((aligned (PGSIZE)));
+
+// Reserved buffers for transmit packets 
+char 
+e1000_tx_packet_buffers[E1000_NUM_TX_DESC][ETH_MAX_PACKET_SIZE]
+__attribute__((aligned (CACHE_LINE_SIZE)));
+
+// Reserved buffers for receive packets
+char 
+e1000_rx_packet_buffers[E1000_NUM_RX_DESC][E1000_RECEIVE_PACKET_SIZE]
+__attribute__((aligned (CACHE_LINE_SIZE)));
+
+// Hardcoded MAC address of this device
+union {
+    char hwaddr[8];
+    struct{
+        uint32_t low;
+        uint32_t high;
+    } fields;
+} netif = {{0x52, 0x54, 0x00, 0x12, 0x34, 0x56, 0x0, 0x0}};
 
 /*
  * Read a register, returns it as a uint32_t.
@@ -109,6 +135,27 @@ e1000_tx_step() {
     e1000w(E1000_TDT, ((tx_idx + 1) % E1000_NUM_TX_DESC));
 }
 
+/*
+ * Advances the RDT register to point to the next entry in the circular queue.
+ * Clears the DD bit of the RX entry afterwards.
+ * The next entry might be already in use; this function doesn't care.
+ * 
+ * Used when want to 'recv' the next RX entry.
+ */
+static void
+e1000_rx_step() {
+    int rx_idx;
+    
+    // Reads RDT
+    rx_idx = e1000r(E1000_RDT);
+    
+    // Advances the RDT to the next entry
+    e1000w(E1000_RDT, ((rx_idx + 1) % E1000_NUM_RX_DESC));
+    
+    // Clear DD flag
+    e1000_rx_desc_array[rx_idx].status &= ~E1000_RXD_STAT_DD;
+}
+
 /**
  * initialize the trasmit descriptor in index i.
  * points to the corresponding buffer, set the correct length,
@@ -126,6 +173,21 @@ e1000_tx_desc_init(int i) {
     // point to the packet buffer (physical address!)
     e1000_tx_desc_array[i].buffer_addr = (uint32_t) PADDR(&e1000_tx_packet_buffers[i]);
     e1000_tx_desc_array[i].lower.flags.length = ETH_MAX_PACKET_SIZE;
+}
+
+/**
+ * initialize the receive descriptor in index i.
+ * points to the corresponding buffer, set the correct length,
+ * zeroes everything else.
+ */
+static void
+e1000_rx_desc_init(int i) {
+    // reset the descriptor
+    memset(&e1000_rx_desc_array[i], 0, sizeof (struct e1000_rx_desc));
+    
+    // point to the packet buffer (physical address!)
+    e1000_rx_desc_array[i].buffer_addr = (uint32_t) PADDR(&e1000_rx_packet_buffers[i]);
+    e1000_rx_desc_array[i].length = E1000_RECEIVE_PACKET_SIZE;
 }
 
 /*
@@ -170,6 +232,60 @@ e1000_transmit_initialization() {
     // the corresponding buffer.
     for (i = 0; i < E1000_NUM_TX_DESC; i++)
         e1000_tx_desc_init(i);
+}
+
+/*
+ * Initializes the device for receiving, follows section 14.4 of the manual.
+ * Assumes that a MMIO memory for the device was mapped.
+ */
+static void
+e1000_receive_initialization() {
+    int i;
+    
+    // Set RAL and RAH to the hardcoded MAC address.
+    e1000w(E1000_RA, netif.fields.low);
+    e1000w(E1000_RA + 4, netif.fields.high);
+    
+    // Set 'Receive Valid' of RAH
+    e1000s(E1000_RA + 4, E1000_RAH_AV, true);
+    
+    // Initialize MTA (Multicast table array.?) to zero.
+    // We don't even support multicast
+    e1000w(E1000_MTA, (0));
+    
+    // No need to set IMS, we don't support interrupts!
+    // But we set it anyway to zero, just in case it wasn't already.
+    e1000w(E1000_IMS, (0));
+    
+    // Set the receive descriptor base address. we are in a 32bit machine, 
+    // so we can just use RDBAL and ignore RDBAH. the address is aligned to 16bytes.
+    e1000w(E1000_RDBAL, PADDR(e1000_rx_desc_array));
+    
+    // Set the transmit descriptor length.
+    e1000w(E1000_RDLEN, sizeof(e1000_rx_desc_array));
+    
+    // Reset the head/tail of the receive queue.
+    // TODO require further investigation.
+    e1000w(E1000_RDH, (0));
+    e1000w(E1000_RDT, (E1000_NUM_RX_DESC - 1));
+    
+    // Zero everything in the Receive Control register first.
+    e1000w(E1000_RCTL, (0));
+    
+    // Set buffer size to 2048
+    e1000s(E1000_RCTL, E1000_RCTL_SZ_2048, true);
+    
+    // Set strip CRC
+    e1000s(E1000_RCTL, E1000_RCTL_SECRC, true);
+    
+    // Ensure all the STA.DD bits are set in the tx descriptors, to
+    // report that they are usable. Also, set the buffer pointer to
+    // the corresponding buffer.
+    for (i = 0; i < E1000_NUM_RX_DESC; i++)
+        e1000_rx_desc_init(i);
+    
+    // Set enable bit on receive control register RCTL.EN = 1
+    e1000s(E1000_RCTL, E1000_RCTL_EN, true);
 }
 
 /* 
@@ -229,6 +345,7 @@ e1000_attachfn(struct pci_func *pcif) {
         panic("e1000 failed to map device into memory (MMIO)");
     
     e1000_transmit_initialization();
+    e1000_receive_initialization();
     
     e1000_read_status(&status);
     

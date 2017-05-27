@@ -30,12 +30,13 @@ void e1000_read_status(struct e1000_status_t *e1000_status);
 /**
  * Device constants
  */
-#define E1000_VENDOR_ID         (0x8086)
-#define E1000_PRODUCT_ID        (0x100e)
+#define E1000_VENDOR_ID             (0x8086)
+#define E1000_PRODUCT_ID            (0x100e)
 
 /**
  * Misc constants
  */
-#define ETH_MAX_PACKET_SIZE     (1518)        // size of ethernet packet, in bytes
+#define E1000_RECEIVE_PACKET_SIZE   (2048)        // must be one of the predefined sizes in the manual
+#define ETH_MAX_PACKET_SIZE         (1518)        // size of ethernet packet, in bytes
 
 #endif	// JOS_KERN_E1000_H
