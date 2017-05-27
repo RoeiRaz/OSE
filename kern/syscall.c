@@ -409,13 +409,13 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		
 		if ((perm & (PTE_P | PTE_U)) != (PTE_P | PTE_U))
 			return -E_INVAL;
-		
+        
 		if ((perm & (~(PTE_P | PTE_U | PTE_W | PTE_AVAIL))) > 0)
 			return -E_INVAL;
-		
+        
 		if ((pp = page_lookup(curenv->env_pgdir, srcva, &pte)) == NULL)
 			return -E_INVAL;
-			
+        
 		if ((perm & PTE_W) && ! (*pte & PTE_W))
 			return -E_INVAL;
 			
@@ -496,19 +496,19 @@ sys_e1000_transmit(char *packet, size_t len) {
 
 // Receives a raw single packet from the e1000 device.
 //
-// return 0 on success, < 0 on error.
+// return received packed length on success, < 0 on error.
 // -E_INVAL if the length of the supplied buffer is not big enough.
 // -E_RING_EMPTY if no packet are waiting to be received.
 static int 
 sys_e1000_receive(char *buffer, size_t len) {
     int r;
     
-    user_mem_assert(curenv, buffer, len, PTE_U | PTE_W);
+    user_mem_assert(curenv, buffer, len, PTE_U );
     
     if ((r = e1000_receive(buffer, len)) < 0)
         return r;
     
-    return 0;
+    return r;
 }
 
 // Dispatches to the correct kernel function, passing the arguments.

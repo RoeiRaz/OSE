@@ -336,7 +336,7 @@ e1000_transmit(char *packet, size_t length) {
 
 /**
  * Receives a packet. TODO: alpha version
- * Returns 0 on success.
+ * Returns (non-negative) length of packet on success.
  * Returns -E_INVAL if the passed buffer is not big enough.
  * Returns -E_RING_EMPTY if the queue is empty.
  */
@@ -344,6 +344,7 @@ int
 e1000_receive(char *packet, size_t len) {
     struct e1000_rx_desc *rx_desc;
     int rx_idx;
+    int length;
     
     if (len < E1000_RECEIVE_PACKET_SIZE)
         return -E_INVAL;
@@ -356,13 +357,16 @@ e1000_receive(char *packet, size_t len) {
     if (! (rx_desc->status & E1000_RXD_STAT_DD))
         return -E_RING_EMPTY;
     
+    // Read length
+    length = rx_desc->length;
+    
     // Move the packet to the user buffer
     memmove(packet, &e1000_rx_packet_buffers[rx_idx], E1000_RECEIVE_PACKET_SIZE);
     
     // TODO catch phrase
     e1000_rx_step();
     
-    return 0;
+    return length;
 }
 
 /*

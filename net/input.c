@@ -2,7 +2,9 @@
 
 extern union Nsipc nsipcbuf;
 
-#define INPUT_BUFFER_SIZE (2048)
+#define NUM_INPUT_PAGES (64)
+
+union Nsipc nsipcbufs[NUM_INPUT_PAGES] __attribute__((aligned(PGSIZE)));
 
 void
 input(envid_t ns_envid)
@@ -10,6 +12,8 @@ input(envid_t ns_envid)
 	binaryname = "ns_input";
     int r;
     envid_t whom;
+    int idx = 0;
+    
     
 	// LAB 6: Your code here:
 	// 	- read a packet from the device driver
@@ -19,22 +23,25 @@ input(envid_t ns_envid)
 	// another packet in to the same physical page.
     while (true) {
         
-        // Set the length
-        nsipcbuf.pkt.jp_len = INPUT_BUFFER_SIZE;
+        nsipcbufs[idx].pkt.jp_data[0] = 0;
         
         // Receive packet from device
-        while ((r = sys_e1000_receive(nsipcbuf.pkt.jp_data, INPUT_BUFFER_SIZE)) < 0) {
+        while ((r = sys_e1000_receive(nsipcbufs[idx].pkt.jp_data, PGSIZE - sizeof (size_t))) < 0) {
             if (r != -E_RING_EMPTY)
                 panic("net/input recv failed");
             
             sys_yield();
         }
+        cprintf("received\n");
         
-        ipc_send(ns_envid, NSREQ_INPUT, &nsipcbuf, PTE_U | PTE_W | PTE_P);
+         // Set the length
+        nsipcbufs[idx].pkt.jp_len = r;
         
-        while((r = ipc_recv(&whom, NULL, NULL)) && whom != ns_envid);
+        // Set input to network server
+        ipc_send(ns_envid, NSREQ_INPUT, &nsipcbufs[idx], PTE_U | PTE_W | PTE_P);
         
-        if(r < 0)
-            panic("net/input ipc_recv error");
+        idx = (idx + 1) % NUM_INPUT_PAGES;
+        
+        sys_yield();
     }
 }

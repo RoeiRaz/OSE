@@ -31,7 +31,7 @@ int errno;
 
 struct netif nif;
 
-#define debug 0
+#define debug 1
 
 struct timer_thread {
 	uint32_t msec;
@@ -297,7 +297,7 @@ serve(void) {
 		args->reqno = reqno;
 		args->whom = whom;
 		args->req = va;
-
+        
 		thread_create(0, "serve_thread", serve_thread, (uint32_t)args);
 		thread_yield(); // let the thread created run
 	}
@@ -326,7 +326,7 @@ umain(int argc, char **argv)
 		timer(ns_envid, TIMER_INTERVAL);
 		return;
 	}
-
+	
 	// fork off the input thread which will poll the NIC driver for input
 	// packets
 	input_envid = fork();
@@ -336,7 +336,7 @@ umain(int argc, char **argv)
 		input(ns_envid);
 		return;
 	}
-
+	
 	// fork off the output thread that will send the packets to the NIC
 	// driver
 	output_envid = fork();
@@ -346,7 +346,7 @@ umain(int argc, char **argv)
 		output(ns_envid);
 		return;
 	}
-
+    
 	// lwIP requires a user threading library; start the library and jump
 	// into a thread to continue initialization.
 	thread_init();

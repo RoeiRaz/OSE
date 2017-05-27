@@ -132,5 +132,5 @@ sys_e1000_transmit(char *packet, size_t len)
 int
 sys_e1000_receive(char *buffer, size_t len)
 {
-    return syscall(SYS_e1000_receive, 1, (uint32_t) buffer, len, 0, 0, 0);
+    return syscall(SYS_e1000_receive, 0, (uint32_t) buffer, len, 0, 0, 0);
 }
