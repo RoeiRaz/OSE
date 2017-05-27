@@ -22,15 +22,8 @@ struct e1000_status_t {
     int padding3 : 22;
 } __attribute__((packed));
 
-/**
- * PCI attach function
- * TODO maybe we should rename this to something nicer
- */
 int e1000_attachfn(struct pci_func *pcif);
-
-/**
- * Reads the status register from the device into 'struct e1000_status'
- */
+int e1000_transmit(char *packet, size_t length);
 void e1000_read_status(struct e1000_status_t *e1000_status);
 
 
@@ -40,5 +33,14 @@ void e1000_read_status(struct e1000_status_t *e1000_status);
 #define E1000_VENDOR_ID         (0x8086)
 #define E1000_PRODUCT_ID        (0x100e)
 
+/**
+ * Error constants
+ */
+#define E1000_E_RING_FULL       (0x1)
+
+/**
+ * Misc constants
+ */
+#define ETH_MAX_PACKET_SIZE     (1518)        // size of ethernet packet, in bytes
 
 #endif	// JOS_KERN_E1000_H
