@@ -29,6 +29,63 @@ va_is_accessed(void *va)
 	return uvpt[PGNUM(va)] & PTE_A;
 }
 
+static short num_inserts =  0;
+
+/*
+ * Lab5 Challenge: evicts @num_blocks, if @hard, evicts accessed too
+ */
+void evict(int num_blocks, int iteration){
+	int freed_count = 0;
+	int res;
+	if(!super || iteration > 5) {
+		return;
+	}
+	for(int i = 3; i < super->s_nblocks; i++){
+		if(freed_count >= num_blocks) {
+			break;
+		}
+		// get diskaddr of block i
+		void* disk_address = diskaddr(i);
+
+		if(va_is_mapped(disk_address)){
+			// the address is mapped:
+			// use PTE_A to track usage, as requested in instructions
+			if(!va_is_accessed(disk_address)){
+				if(!va_is_dirty(disk_address)){
+					// block is OK to flush
+					freed_count++;
+					flush_block(disk_address);
+					sys_page_unmap(0, disk_address);
+				}
+			} else {
+				// clear "accessed" bits for future loops (if @freed_count doesn't reach @num_blocks), possibly using sys_page_map
+				if(iteration > 1){
+					if((res = sys_access_bit_map(disk_address)) < 0) {
+						panic("in evict, sys_clear_block_access_bit: %e", res);
+					}
+				}
+			}
+		} else {
+			// @disk_address isn't mapped
+			freed_count++;
+		}
+	}
+	if((res = num_blocks - freed_count) > 0) {
+		evict(res, iteration + 1);
+	}
+}
+
+
+// lab5 challenge: make sure 10 blocks are avaliable once every 50 calls
+void evict_if_necessary(){
+	num_inserts++;
+	if(num_inserts % 50){
+		num_inserts = 0;
+		evict(10, 1);
+	}
+}
+
+
 // Fault any disk block that is read in to memory by
 // loading it from disk.
 static void
@@ -146,52 +203,5 @@ bc_init(void)
 	memmove(&super, diskaddr(1), sizeof super);
 }
 
-static short num_inserts =  0;
 
-// lab5 challenge: evicts 10 blocks once every 50 calls
-void evict_if_necessary(){
-	num_inserts++;
-	if(num_inserts % 50){
-		num_inserts = 0;
-		evict(10, false);
-	}
-}
-
-/*
- * Lab5 Challenge: evicts @num_blocks, if @hard, evicts accessed too
- */
-void evict(int num_blocks, boolean hard){
-	int freed_count = 0;
-	int res;
-	for(int i = 3; i < super->s_nblocks; i++){
-		if(freed_count >= num_blocks){
-			break;
-		}
-		// get diskaddr of block i
-		void* disk_address = diskaddr(i);
-
-		if(va_is_mapped(disk_address)){
-			// the address is mapped:
-			// use PTE_A to track usage, as requested in instructions
-			if(!va_is_accessed(disk_address)){
-				if(!va_is_dirty(disk_address)){
-					// block is OK to flush
-					freed_count++;
-					flush_block(disk_address);
-					sys_page_unmap(0, disk_address);
-				}
-			} else {
-				// clear "accessed" bits for future loops (if @freed_count doesn't reach @num_blocks), possibly using sys_page_map
-				if(hard && ((res = sys_access_bit_map(disk_address)) < 0))
-					panic("in evict, sys_clear_block_access_bit: %e", res);
-			}
-		} else {
-			// @disk_address isn't mapped
-			freed_count++;
-		}
-	}
-	if((res = num_blocks - freed_count) > 0) {
-		evict(res, true);
-	}
-}
 

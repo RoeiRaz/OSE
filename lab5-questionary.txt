@@ -14,20 +14,20 @@
 
 === Q How much disk space can be addressed by a single bitmap block
 ===   when size of a block is 4KB? (number in _bytes_)
-
+134217728
 === Q How much disk space can be addressed by a single bitmap block
 ===   when size of a block is 512B? (number in _bytes_)
-
+2097152
 === Q What is a maximum supported file size in JOS FS? (number in _bytes_)
 4235264
 === Q Did you have to do anything else to ensure that the I/O
 ===   privilege setting is saved and restored properly when you
 ===   subsequently switch from one environment to another? Why? 
 ===   (free form)
-the privilege setting is automatically restored in after 
+the privilege setting is automatically restored (in env_pop_tf(), kern/env.c) after being saved in kern/trapentry.S. 
 === Q How long approximately did it take you to do this lab?
 ===   (number of hours for all partners combined)
-
+11
 ====================================================================
 === Q What challenge(s) have you chosen to implement? (specify
 ===   challenge numbers separated by spaces, if more than one)
