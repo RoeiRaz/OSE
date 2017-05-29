@@ -37,6 +37,11 @@ the privilege setting is automatically restored in after
 ===   (one file per line, relative to lab directory containing .git/)
 fs/bc.c
 kern/syscall.c
+lib/syscall.c
+inc/syscall.h
+inc/lib.h
 === Q Describe you solution.
 ===   (free form, up to 500 words, don't need to use all 500!)
-added evict(int num_blocks) to bc.c, which makes sure the memory has @num_blocks free blocks. evict() loops over the blocks, first removing blocks that didn't have the accessed bits on, then others. the syscall we added (sys_access_bit_map) is based on sys_page_map, and unsets the access bit.
+The eviction policy we implemented evicts 10 blocks after every 50 times a block gets faulted in (the defaults are arbitrary).
+
+We added evict(int num_blocks) to bc.c, which makes sure the memory has @num_blocks free blocks. evict() loops over the blocks, first removing blocks that didn't have the accessed bits on, then others (when the @hard flag is set). the syscall we added (sys_access_bit_map) is based on sys_page_map, and unsets the access bit.

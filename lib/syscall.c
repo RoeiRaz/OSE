@@ -79,6 +79,11 @@ sys_page_map(envid_t srcenv, void *srcva, envid_t dstenv, void *dstva, int perm)
 	return syscall(SYS_page_map, 1, srcenv, (uint32_t) srcva, dstenv, (uint32_t) dstva, perm);
 }
 
+int sys_access_bit_map(void *srcva)
+{
+	return syscall(SYS_access_bit_map, 0, (uint32_t) srcva, 0, 0, 0, 0);
+}
+
 int
 sys_page_unmap(envid_t envid, void *va)
 {
