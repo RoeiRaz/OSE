@@ -1,7 +1,21 @@
 
 #include "fs.h"
 
+/*
+ * @num_blocks is the number of block we want evicted
+ */
 void evict(int num_blocks){
+	int freed_count = 0;
+	for(int i = 3; i < super->s_nblocks; i++){
+		if(freed_count >= num_blocks){
+			break;
+		}
+		// free block i if possible
+		if((i == -1 + super->s_nblocks) && (freed_count < num_blocks)){
+			// restart if not enough block were freed
+			i = 2;			
+		}
+	}
 	return;
 }
 
