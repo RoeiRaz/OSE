@@ -225,23 +225,19 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	
 	if ((uintptr_t) va >= UTOP || (uintptr_t) va % PGSIZE != 0)
 		return -E_INVAL;
-	
 	if ((perm & (PTE_P | PTE_U)) != (PTE_P | PTE_U))
 		return -E_INVAL;
-	
 	if ((perm & (~(PTE_P | PTE_U | PTE_W | PTE_AVAIL))) > 0)
 		return -E_INVAL;
-	
 	if ((error = envid2env(envid, &e, 1)) < 0)
 		return error;
-	
 	if ((pp = page_alloc(ALLOC_ZERO)) == NULL)
 		return -E_NO_MEM;
-	
 	if ((error = page_insert(e->env_pgdir, pp, va, perm)) < 0) {
 		page_free(pp);
 		return error;
 	}
+	cprintf("5");
 	
 	return 0;
 }
@@ -328,7 +324,7 @@ sys_access_bit_map(void *srcva)
 	// struct PageInfo *pp;
 	pte_t *pte;
 	int error;
-	
+		cprintf("0");
 	//	-E_BAD_ENV if srcenvid doesn't currently exist,
 	//		or the caller doesn't have permission to change one of them.
 	if ((error = envid2env(0, &srcenv, 1)) < 0)
@@ -338,13 +334,12 @@ sys_access_bit_map(void *srcva)
 	if ((uintptr_t) srcva >= UTOP || (uintptr_t) srcva % PGSIZE != 0)
 		return -E_INVAL;
 
-
 	//	-E_INVAL is srcva is not mapped in srcenvid's address space.
 	//	lookup the 'srcva' physical page.
 	if (page_lookup(srcenv->env_pgdir, srcva, &pte) == NULL)
 		return -E_INVAL;
 
-	*pte &= ~PTE_A;
+	*pte &= PTE_A;
 	return 0;
 }
 
