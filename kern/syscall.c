@@ -237,7 +237,6 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 		page_free(pp);
 		return error;
 	}
-	cprintf("5");
 	
 	return 0;
 }
@@ -324,7 +323,7 @@ sys_access_bit_map(void *srcva)
 	// struct PageInfo *pp;
 	pte_t *pte;
 	int error;
-		cprintf("0");
+
 	//	-E_BAD_ENV if srcenvid doesn't currently exist,
 	//		or the caller doesn't have permission to change one of them.
 	if ((error = envid2env(0, &srcenv, 1)) < 0)
@@ -339,7 +338,7 @@ sys_access_bit_map(void *srcva)
 	if (page_lookup(srcenv->env_pgdir, srcva, &pte) == NULL)
 		return -E_INVAL;
 
-	*pte &= PTE_A;
+	*pte &= ~PTE_A;
 	return 0;
 }
 
