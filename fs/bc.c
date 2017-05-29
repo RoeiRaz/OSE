@@ -1,24 +1,5 @@
 
 #include "fs.h"
-
-/*
- * @num_blocks is the number of block we want evicted
- */
-void evict(int num_blocks){
-	int freed_count = 0;
-	for(int i = 3; i < super->s_nblocks; i++){
-		if(freed_count >= num_blocks){
-			break;
-		}
-		// free block i if possible
-		if((i == -1 + super->s_nblocks) && (freed_count < num_blocks)){
-			// restart if not enough block were freed
-			i = 2;			
-		}
-	}
-	return;
-}
-
 // Return the virtual address of this disk block.
 void*
 diskaddr(uint32_t blockno)
@@ -40,6 +21,12 @@ bool
 va_is_dirty(void *va)
 {
 	return (uvpt[PGNUM(va)] & PTE_D) != 0;
+}
+
+bool
+va_is_accessed(void *va)
+{
+	return uvpt[PGNUM(va)] & PTE_A;
 }
 
 // Fault any disk block that is read in to memory by
@@ -154,5 +141,40 @@ bc_init(void)
 
 	// cache the super block by reading it once
 	memmove(&super, diskaddr(1), sizeof super);
+}
+
+
+/*
+ * evict @num_blocks
+ */
+void evict(int num_blocks){
+	int freed_count = 0;
+	for(int i = 3; i < super->s_nblocks; i++){
+		if(freed_count >= num_blocks){
+			break;
+		}
+		// get diskaddr of block i
+		void* disk_address = diskaddr(i);
+		// free it if necessary
+		if(va_is_mapped(disk_address)){
+			// use PTE_A to track usage, as requested in instructions
+			if(!va_is_accessed(disk_address){
+				// block is OK to flush
+				freed_count++;
+				flush_block(disk_address);
+				sys_page_unmap(0, disk_address);
+			}
+			else {
+				// clear "accessed" bits for future loops (if @freed_count doesn't reach @num_blocks), possibly using sys_page_map
+			}
+		} else {
+			// @disk_address isn't mapped
+			freed_count++;
+		}
+	}
+	int res = num_blocks - freed_count;
+	if(res > 0) {
+		evict(res);
+	}
 }
 

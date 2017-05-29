@@ -35,6 +35,7 @@
 === Q If the challenge requires changing the kernel source, list the
 ===   files which you have changed/added during implementation.
 ===   (one file per line, relative to lab directory containing .git/)
-
+fs/bc.c
 === Q Describe you solution.
 ===   (free form, up to 500 words, don't need to use all 500!)
+added evict(int num_blocks) to bc.c, which makes sure the memory has @num_blocks free blocks. evict() loops over the blocks, first removing blocks that didn't have the accessed bits on, then others.
