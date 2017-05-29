@@ -19,23 +19,24 @@
 ===   when size of a block is 512B? (number in _bytes_)
 
 === Q What is a maximum supported file size in JOS FS? (number in _bytes_)
-
+4235264
 === Q Did you have to do anything else to ensure that the I/O
 ===   privilege setting is saved and restored properly when you
 ===   subsequently switch from one environment to another? Why? 
 ===   (free form)
-
+the privilege setting is automatically restored in after 
 === Q How long approximately did it take you to do this lab?
 ===   (number of hours for all partners combined)
 
 ====================================================================
 === Q What challenge(s) have you chosen to implement? (specify
 ===   challenge numbers separated by spaces, if more than one)
-
+2
 === Q If the challenge requires changing the kernel source, list the
 ===   files which you have changed/added during implementation.
 ===   (one file per line, relative to lab directory containing .git/)
 fs/bc.c
+kern/syscall.c
 === Q Describe you solution.
 ===   (free form, up to 500 words, don't need to use all 500!)
-added evict(int num_blocks) to bc.c, which makes sure the memory has @num_blocks free blocks. evict() loops over the blocks, first removing blocks that didn't have the accessed bits on, then others.
+added evict(int num_blocks) to bc.c, which makes sure the memory has @num_blocks free blocks. evict() loops over the blocks, first removing blocks that didn't have the accessed bits on, then others. the syscall we added (sys_access_bit_map) is based on sys_page_map, and unsets the access bit.

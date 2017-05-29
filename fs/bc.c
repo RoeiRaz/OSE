@@ -145,10 +145,11 @@ bc_init(void)
 
 
 /*
- * evict @num_blocks
+ * evict @num_blocks, if @hard, evicts accessed too
  */
-void evict(int num_blocks){
+void evict(int num_blocks, boolean hard){
 	int freed_count = 0;
+	int res;
 	for(int i = 3; i < super->s_nblocks; i++){
 		if(freed_count >= num_blocks){
 			break;
@@ -158,23 +159,25 @@ void evict(int num_blocks){
 		// free it if necessary
 		if(va_is_mapped(disk_address)){
 			// use PTE_A to track usage, as requested in instructions
-			if(!va_is_accessed(disk_address){
+			if(!va_is_accessed(disk_address)){
 				// block is OK to flush
 				freed_count++;
 				flush_block(disk_address);
 				sys_page_unmap(0, disk_address);
-			}
+			
 			else {
 				// clear "accessed" bits for future loops (if @freed_count doesn't reach @num_blocks), possibly using sys_page_map
+				if(hard && ((res = sys_clear_block_access_bit(disk_address)) < 0)){
+					panic("in evict, sys_clear_block_access_bit: %e", r);	
+				}
 			}
 		} else {
 			// @disk_address isn't mapped
 			freed_count++;
 		}
 	}
-	int res = num_blocks - freed_count;
-	if(res > 0) {
-		evict(res);
+	if((res = num_blocks - freed_count) > 0) {
+		evict(res, true);
 	}
 }
 

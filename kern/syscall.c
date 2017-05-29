@@ -319,6 +319,36 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	return 0;
 }
 
+
+// Lab 5 Challenge
+static int
+sys_access_bit_map(void *srcva)
+{
+	struct Env *srcenv;
+	// struct PageInfo *pp;
+	pte_t *pte;
+	int error;
+	
+	//	-E_BAD_ENV if srcenvid doesn't currently exist,
+	//		or the caller doesn't have permission to change one of them.
+	if ((error = envid2env(0, &srcenv, 1)) < 0)
+		return error;
+
+	//	-E_INVAL if srcva >= UTOP or srcva is not page-aligned
+	if ((uintptr_t) srcva >= UTOP || (uintptr_t) srcva % PGSIZE != 0)
+		return -E_INVAL;
+
+
+	//	-E_INVAL is srcva is not mapped in srcenvid's address space.
+	//	lookup the 'srcva' physical page.
+	if (page_lookup(srcenv->env_pgdir, srcva, &pte) == NULL)
+		return -E_INVAL;
+
+	*pte &= ~PTE_A;
+	return 0;
+}
+
+
 // Unmap the page of memory at 'va' in the address space of 'envid'.
 // If no page is mapped, the function silently succeeds.
 //
@@ -505,6 +535,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return (int32_t) sys_ipc_recv((void *) a1);
 	case SYS_env_set_trapframe:
 		return (int32_t) sys_env_set_trapframe((envid_t) a1, (struct Trapframe *) a2);
+	case SYS_access_bit_map:
+		return (int32_t) sys_access_bit_map((void *) a1);
 	default:
 		return -E_INVAL;
 	}
