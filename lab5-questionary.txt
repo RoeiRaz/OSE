@@ -1,0 +1,40 @@
+=== This template file contains questions you need to answer.
+=== Fill your answers on appropriate blank lines only.
+=== Don't start any line with three equal signs "===".
+=== Don't edit any lines starting from three equal signs.
+=== Use C notation to write numbers: 42 for decimal, 0x2a for hexadecimal.
+=== We may check most of the answers automatically, so "forty two" or
+=== "26+16" won't work for this example. Spaces are mostly ignored, so
+=== "  42  " is OK (without quotes of course). 
+=== When asked to specify address & instruction, do it in the form of
+=== gdb output "ADDRESS: INSTRUCTION", for example "0x7c26:  or  $0x1,%eax"
+=== Don't make lines longer than 80 characters. You don't need to fit your
+=== answer in a single line, you can start a new line at will.
+=== However, when asked to fill "a table" make each table raw a single line.
+
+=== Q How much disk space can be addressed by a single bitmap block
+===   when size of a block is 4KB? (number in _bytes_)
+
+=== Q How much disk space can be addressed by a single bitmap block
+===   when size of a block is 512B? (number in _bytes_)
+
+=== Q What is a maximum supported file size in JOS FS? (number in _bytes_)
+
+=== Q Did you have to do anything else to ensure that the I/O
+===   privilege setting is saved and restored properly when you
+===   subsequently switch from one environment to another? Why? 
+===   (free form)
+
+=== Q How long approximately did it take you to do this lab?
+===   (number of hours for all partners combined)
+
+====================================================================
+=== Q What challenge(s) have you chosen to implement? (specify
+===   challenge numbers separated by spaces, if more than one)
+
+=== Q If the challenge requires changing the kernel source, list the
+===   files which you have changed/added during implementation.
+===   (one file per line, relative to lab directory containing .git/)
+
+=== Q Describe you solution.
+===   (free form, up to 500 words, don't need to use all 500!)

@@ -1,6 +1,10 @@
 
 #include "fs.h"
 
+void evict(int num_blocks){
+	return;
+}
+
 // Return the virtual address of this disk block.
 void*
 diskaddr(uint32_t blockno)
