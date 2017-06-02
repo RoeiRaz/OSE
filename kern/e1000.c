@@ -4,18 +4,27 @@
 #include <kern/e1000.h>
 #include <kern/pci.h>
 #include <kern/pmap.h>
+#include <kern/picirq.h>
 #include <inc/string.h>
 #include <inc/x86.h>
 #include <inc/assert.h>
 #include <inc/error.h>
+#include <inc/env.h>
+#include <inc/trap.h>
 
 #define CACHE_LINE_SIZE (128)
 
 #define E1000_NUM_TX_DESC   (8 * 4)     // must be less than/equal 64 for tests
                                         //to be effective. must be multiple of 8.
                                         
-#define E1000_NUM_RX_DESC   (8 * 16)     // atleast 128. must be multiple of 8.                                        
+#define E1000_NUM_RX_DESC   (8 * 16)     // atleast 128. must be multiple of 8.     
 
+/**
+ * Environment waiting to receive packets. There can be only one!
+ * NULL if no environment is listening for packets.
+ * TODO do we really want to do that this way?
+ */
+struct Env * e1000_env = NULL;
 
 /**
  * MMIU addresses and metadata.
@@ -57,6 +66,12 @@ union {
         uint32_t high;
     } fields;
 } netif = {{0x52, 0x54, 0x00, 0x12, 0x34, 0x56, 0x0, 0x0}};
+
+// Events listeners list
+e1000_listener_t e1000_listeners_list[E1000_REGISTER_SIZE] = {0};
+
+// Environment waiting for input
+struct Env *e1000_env_waiting_input = NULL;
 
 /*
  * Read a register, returns it as a uint32_t.
@@ -262,9 +277,11 @@ e1000_receive_initialization() {
     // We don't even support multicast
     e1000w(E1000_MTA, (0));
     
-    // No need to set IMS, we don't support interrupts!
-    // But we set it anyway to zero, just in case it wasn't already.
-    e1000w(E1000_IMS, (0));
+    // Allow interrupts
+    cprintf("BEFORE setiing E1000_IMS\n");
+    e1000w(E1000_IMS, (0xFFFFFFFF));
+    e1000r(E1000_ICR);
+    cprintf("AFTER setiing E1000_IMS\n");
     
     // Set the receive descriptor base address. we are in a 32bit machine, 
     // so we can just use RDBAL and ignore RDBAH. the address is aligned to 16bytes.
@@ -295,6 +312,8 @@ e1000_receive_initialization() {
     
     // Set enable bit on receive control register RCTL.EN = 1
     e1000s(E1000_RCTL, E1000_RCTL_EN, true);
+    
+    e1000w(E1000_ICS, E1000_ICS_RXT0);
 }
 
 /* 
@@ -369,11 +388,80 @@ e1000_receive(char *packet, size_t len) {
     return length;
 }
 
+/**
+ * Checks whether the RX queue is empty.
+ */
+bool
+e1000_rx_empty() {
+    struct e1000_rx_desc *rx_desc;
+    
+    // read the next receeive descriptor
+    rx_desc = e1000_rx_follow();
+    
+    return (! (rx_desc->status & E1000_RXD_STAT_DD));
+}
+
+/**
+ * Returns an environment blocking on input to runnable state.s
+ */
+void e1000_notify_env_rx() {
+    // If there is no environment waiting for input, nothing to do.
+    if (!e1000_env_waiting_input)
+        return;
+    
+    // If the env is not waiting for E1000, nothing to do.
+    if (!e1000_env_waiting_input->env_e1000_recving)
+        return;
+    
+    // Return the environment to runnable state.
+    e1000_env_waiting_input->env_status = ENV_RUNNABLE;
+    
+    // Thats it...
+}
+
+/**
+ * Register an event listener.
+ * Allows kernel code to be executed asynchronically on certain events.
+ */
+void
+e1000_register(int event, e1000_listener_t fn) {
+    // sanity check.
+    assert(event >= 0 && event < E1000_REGISTER_SIZE);
+    
+    // check if the listener slot is already taken.
+    if (e1000_listeners_list[event])
+        panic("event listener slot is already taken! we don't really support multiple listeners for one event, its not necessary!");
+    
+    // check that the handler is in kernel memory space (yet another sanity check)
+    if ((intptr_t) fn < KERNBASE)
+        panic("handler address is corrupted, either bug or malicious code");
+    
+    // plug in the event handler
+    e1000_listeners_list[event] = fn;
+}
+
+/**
+ * Interrupt handler. mainly for dispatching the correct event handler,
+ * registered previously by e1000_register.
+ */
+void
+e1000_intr() {    
+    // Read the cause for the interrupt. also flushes the register, so we must handle all
+    // the interrupts that accumulated (it is possible that we accumulated more than 1 type!)
+    uint32_t ic = e1000r(E1000_ICR);
+    
+    // Receive expired timer interrupt - We have packets waiting for us in the queue.
+    if (ic & E1000_ICR_RXT0 && e1000_listeners_list[E1000_ICR_RXT0])
+        e1000_listeners_list[E1000_ICR_RXT0]();
+}
+
 /*
  * The PCI attach procedure for the device
  */
 int 
 e1000_attachfn(struct pci_func *pcif) {
+    
+    cprintf("IRQ LINE FOR E1000: %d\n", pcif->irq_line);
     
     struct e1000_status_t status;
     
@@ -388,17 +476,14 @@ e1000_attachfn(struct pci_func *pcif) {
     if ((e1000 = mmio_map_region(pcif->reg_base[0], pcif->reg_size[0])) == NULL)
         panic("e1000 failed to map device into memory (MMIO)");
     
+    // Enable relevant IRQ in the PIC
+    irq_setmask_8259A(irq_mask_8259A & (~(1 << pcif->irq_line)));
+    
     e1000_transmit_initialization();
     e1000_receive_initialization();
     
     e1000_read_status(&status);
-    
-    cprintf("E1000 status register:\n");
-    cprintf("- Double duplex: %s\n", status.e1s_fd ? "yes" : "no");
-    cprintf("- Link: %s\n", status.e1s_lu ? "up" : "down");
-    cprintf("- Transmission paused: %s\n", status.e1s_txoff ? "yes" : "no");
-    cprintf("- Transsmision speed: %d\n", status.e1s_speed);
-    
+
     char Surrender[1024] = "\
         Mother told me, yes, she told me\
         That I'd meet girls like you\

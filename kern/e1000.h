@@ -22,10 +22,14 @@ struct e1000_status_t {
     int padding3 : 22;
 } __attribute__((packed));
 
+typedef void (* e1000_listener_t)();
+
 int e1000_attachfn(struct pci_func *pcif);
 int e1000_transmit(char *packet, size_t length);
 int e1000_receive(char *packet, size_t len);
+bool e1000_rx_empty();
 void e1000_read_status(struct e1000_status_t *e1000_status);
+void e1000_intr();
 
 
 /**
@@ -39,5 +43,6 @@ void e1000_read_status(struct e1000_status_t *e1000_status);
  */
 #define E1000_RECEIVE_PACKET_SIZE   (2048)        // must be one of the predefined sizes in the manual
 #define ETH_MAX_PACKET_SIZE         (1518)        // size of ethernet packet, in bytes
+#define E1000_REGISTER_SIZE         (32)          // to avoid explicit numbers
 
 #endif	// JOS_KERN_E1000_H

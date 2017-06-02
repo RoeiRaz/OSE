@@ -14,6 +14,7 @@
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 static struct Taskstate ts;
 
@@ -66,6 +67,11 @@ static const char *trapname(int trapno)
 	return "(unknown trap)";
 }
 
+void 
+trap_default(void)
+{
+    panic("Unknown interrupt!");
+}
 
 void
 trap_init(void)
@@ -73,6 +79,20 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 	extern struct TrapEntry trapentries[];
 	struct TrapEntry *entry = trapentries;
+    int i;
+    
+    // Set default trap for every interrupt
+    for (i = 0; i < 256; i++) {
+        SETGATE(
+			idt[i], 
+			0, // We set all the gates to interrupt gates
+			// in order to disable IF implicitly.
+			GD_KT, 
+			&trap_default,
+			0
+		);
+    }
+    
 	// LAB 3: Your code here.
 	// STUDENTS NOTE:
 	// Here we implemented bonus 1. we create a table
@@ -233,14 +253,26 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle keyboard and serial interrupts.
 	// LAB 5: Your code here.
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_KBD) {
+        lapic_eoi();
 		kbd_intr();
 		return;
 	}
 	
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_SERIAL) {
+        lapic_eoi();
 		serial_intr();
 		return;
 	}
+	
+	// Handle E1000 interrupt. TODO: what if we use different net card????
+	// what if the interrupt line is not hard coded?
+	// what then?
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_E1000) {
+        lapic_eoi();
+        e1000_intr();
+        return;
+    }
+	
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)

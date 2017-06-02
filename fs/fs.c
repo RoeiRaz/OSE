@@ -75,7 +75,7 @@ alloc_block(void)
 	
 alloc_block_found:
 	bitmap[blockno/32] &= ~(1<<(blockno%32));
-	flush_block(diskaddr(blockno));
+	flush_block(&bitmap[blockno/32]);
 	return blockno;
 }
 
@@ -168,6 +168,8 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 			return -E_NO_DISK;
 		
 		f->f_indirect = b;
+        
+        flush_block(&f->f_indirect);
 	}
 	
 	if (filebno < NDIRECT)
@@ -200,9 +202,12 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 	if ((r = file_block_walk(f, filebno, &ppdiskbno, 1)) < 0)
 		panic("cannot get block offset: %e", r);
 	
-	if (!*ppdiskbno && (*ppdiskbno = alloc_block()) < 0)
-		return -E_NO_DISK;
-	
+	if (!*ppdiskbno) {
+        if ((*ppdiskbno = alloc_block()) < 0)
+            return -E_NO_DISK;
+        flush_block(ppdiskbno);
+    }
+    
 	if (blk)
 		*blk = (char *) diskaddr(*ppdiskbno);
 	
