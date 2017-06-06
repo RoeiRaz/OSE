@@ -73,7 +73,6 @@ irq_setmask_8259A(uint16_t mask)
 {
 	int i;
 	irq_mask_8259A = mask;
-    cprintf("wantafanta\n");
 	if (!didinit)
 		return;
 	outb(IO_PIC1+1, (char)mask);

@@ -278,10 +278,8 @@ e1000_receive_initialization() {
     e1000w(E1000_MTA, (0));
     
     // Allow interrupts
-    cprintf("BEFORE setiing E1000_IMS\n");
     e1000w(E1000_IMS, (0xFFFFFFFF));
     e1000r(E1000_ICR);
-    cprintf("AFTER setiing E1000_IMS\n");
     
     // Set the receive descriptor base address. we are in a 32bit machine, 
     // so we can just use RDBAL and ignore RDBAH. the address is aligned to 16bytes.
@@ -460,8 +458,6 @@ e1000_intr() {
  */
 int 
 e1000_attachfn(struct pci_func *pcif) {
-    
-    cprintf("IRQ LINE FOR E1000: %d\n", pcif->irq_line);
     
     struct e1000_status_t status;
     
