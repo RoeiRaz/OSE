@@ -5,6 +5,7 @@
 #include <kern/pci.h>
 #include <kern/pmap.h>
 #include <kern/picirq.h>
+#include <kern/env.h>
 #include <inc/string.h>
 #include <inc/x86.h>
 #include <inc/assert.h>
@@ -19,12 +20,6 @@
                                         
 #define E1000_NUM_RX_DESC   (8 * 16)     // atleast 128. must be multiple of 8.     
 
-/**
- * Environment waiting to receive packets. There can be only one!
- * NULL if no environment is listening for packets.
- * TODO do we really want to do that this way?
- */
-struct Env * e1000_env = NULL;
 
 /**
  * MMIU addresses and metadata.
@@ -66,12 +61,6 @@ union {
         uint32_t high;
     } fields;
 } netif = {{0x52, 0x54, 0x00, 0x12, 0x34, 0x56, 0x0, 0x0}};
-
-// Events listeners list
-e1000_listener_t e1000_listeners_list[E1000_REGISTER_SIZE] = {0};
-
-// Environment waiting for input
-struct Env *e1000_env_waiting_input = NULL;
 
 /*
  * Read a register, returns it as a uint32_t.
@@ -315,7 +304,7 @@ e1000_receive_initialization() {
 }
 
 /* 
- * Trasmits a packet. TODO: alpha version
+ * Trasmits a packet.
  * returns 0 on success
  * returns -E1000_E_RING_FULL if the queue is full
  */
@@ -352,7 +341,7 @@ e1000_transmit(char *packet, size_t length) {
 }
 
 /**
- * Receives a packet. TODO: alpha version
+ * Receives a packet.
  * Returns (non-negative) length of packet on success.
  * Returns -E_INVAL if the passed buffer is not big enough.
  * Returns -E_RING_EMPTY if the queue is empty.
@@ -400,57 +389,39 @@ e1000_rx_empty() {
 }
 
 /**
- * Returns an environment blocking on input to runnable state.s
- */
-void e1000_notify_env_rx() {
-    // If there is no environment waiting for input, nothing to do.
-    if (!e1000_env_waiting_input)
-        return;
-    
-    // If the env is not waiting for E1000, nothing to do.
-    if (!e1000_env_waiting_input->env_e1000_recving)
-        return;
-    
-    // Return the environment to runnable state.
-    e1000_env_waiting_input->env_status = ENV_RUNNABLE;
-    
-    // Thats it...
-}
-
-/**
- * Register an event listener.
- * Allows kernel code to be executed asynchronically on certain events.
+ * Interrupt handler. We keep it simple and static: the interrupt handler
+ * checks for process that is waiting to receive packet, and if there is
+ * an incoming available packet, injects it into the process structure 
+ * before making it runnable again.
  */
 void
-e1000_register(int event, e1000_listener_t fn) {
-    // sanity check.
-    assert(event >= 0 && event < E1000_REGISTER_SIZE);
+e1000_intr() {
+    struct Env *e;
+    int i;
     
-    // check if the listener slot is already taken.
-    if (e1000_listeners_list[event])
-        panic("event listener slot is already taken! we don't really support multiple listeners for one event, its not necessary!");
-    
-    // check that the handler is in kernel memory space (yet another sanity check)
-    if ((intptr_t) fn < KERNBASE)
-        panic("handler address is corrupted, either bug or malicious code");
-    
-    // plug in the event handler
-    e1000_listeners_list[event] = fn;
-}
-
-/**
- * Interrupt handler. mainly for dispatching the correct event handler,
- * registered previously by e1000_register.
- */
-void
-e1000_intr() {    
     // Read the cause for the interrupt. also flushes the register, so we must handle all
     // the interrupts that accumulated (it is possible that we accumulated more than 1 type!)
-    uint32_t ic = e1000r(E1000_ICR);
+    e1000r(E1000_ICR);
     
-    // Receive expired timer interrupt - We have packets waiting for us in the queue.
-    if (ic & E1000_ICR_RXT0 && e1000_listeners_list[E1000_ICR_RXT0])
-        e1000_listeners_list[E1000_ICR_RXT0]();
+    // search for applicable env.
+    for (i = 0; i < NENV; i++)
+        if (! envs[i].env_link && envs[i].env_e1000_receiving)
+            break;
+    
+    // if we didn't find one, finish here.
+    if (i == NENV)
+        return;
+    
+    // try to receive a packet. most likely, we will receive one seccessfully
+    if ((i = e1000_receive(envs[i].env_e1000_packet, envs[i].env_e1000_size)) < 0) {
+        if (-i == E_RING_EMPTY) return;
+        panic("error while receiving: %e", i);
+    }
+    
+    // If we received the packet successfully, inject it and resume running the env.
+    envs[i].env_status = ENV_RUNNABLE;
+    envs[i].env_e1000_receiving = false;
+    envs[i].env_e1000_size = i;
 }
 
 /*

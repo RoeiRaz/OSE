@@ -69,7 +69,9 @@ struct Env {
 	int env_ipc_perm;		// Perm of page mapping received
 	
 	// Lab 6 E1000
-	bool env_e1000_recving;
+	bool env_e1000_receiving; // Is this environment waiting for packet?
+    char *env_e1000_packet; // packet storage location
+    int env_e1000_size;     // packet storage size/input packet size.
 };
 
 #endif // !JOS_INC_ENV_H
