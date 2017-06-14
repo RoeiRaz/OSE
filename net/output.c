@@ -14,6 +14,8 @@ output(envid_t ns_envid)
     
 	binaryname = "ns_output";
     
+    cprintf("%s -> %x\n", binaryname, thisenv->env_id);
+    
 	// LAB 6: Your code here:
 	// 	- read a packet from the network server
 	//	- send the packet to the device driver

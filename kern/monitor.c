@@ -220,6 +220,8 @@ monitor(struct Trapframe *tf)
 	cprintf("%@rWe %@buse %@gcolors! %@rIf %@gyou %@bran %@rqemu-nox %@gyou %@wwon't see them probably :(\n");
 	cprintf("Type '%@rhelp%@w' for a list of commands.\n");
 
+    
+    
 	if (tf != NULL)
 		print_trapframe(tf);
 

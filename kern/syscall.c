@@ -497,18 +497,27 @@ sys_e1000_transmit(char *packet, size_t len) {
 // Receives a raw single packet from the e1000 device.
 //
 // return received packed length on success, < 0 on error.
-// -E_INVAL if the length of the supplied buffer is not big enough.
-// -E_RING_EMPTY if no packet are waiting to be received.
 static int 
 sys_e1000_receive(char *buffer, size_t len) {
     int r;
     
     user_mem_assert(curenv, buffer, len, PTE_U );
     
-    if ((r = e1000_receive(buffer, len)) < 0)
-        return r;
     
-    return r;
+    // store arguments in the env structure
+    curenv->env_e1000_receiving = true;
+    curenv->env_e1000_packet = buffer;
+    curenv->env_e1000_size = len;
+    
+    // apply a packet timer interrupt to combat the lost-wakeup problem
+    e1000_gen_intr();
+    
+    // sleep
+    curenv->env_status = ENV_NOT_RUNNABLE;
+    sched_yield();
+    
+    // for compilers (this function does not return)
+    return 0;
 }
 
 // Dispatches to the correct kernel function, passing the arguments.

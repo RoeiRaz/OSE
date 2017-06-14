@@ -15,6 +15,7 @@
 #include <kern/spinlock.h>
 #include <kern/time.h>
 #include <kern/e1000.h>
+#include <kern/picirq.h>
 
 static struct Taskstate ts;
 
@@ -268,8 +269,9 @@ trap_dispatch(struct Trapframe *tf)
 	// what if the interrupt line is not hard coded?
 	// what then?
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_E1000) {
-        lapic_eoi();
         e1000_intr();
+        irq_eoi();
+        lapic_eoi();
         return;
     }
 	

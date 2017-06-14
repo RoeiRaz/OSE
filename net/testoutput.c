@@ -39,4 +39,5 @@ umain(int argc, char **argv)
 	// Spin for a while, just in case IPC's or packets need to be flushed
 	for (i = 0; i < TESTOUTPUT_COUNT*2; i++)
 		sys_yield();
+    
 }

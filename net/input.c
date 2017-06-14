@@ -26,13 +26,14 @@ input(envid_t ns_envid)
         nsipcbufs[idx].pkt.jp_data[0] = 0;
         
         // Receive packet from device
-        while ((r = sys_e1000_receive(nsipcbufs[idx].pkt.jp_data, PGSIZE - sizeof (size_t))) < 0) {
-            if (r != -E_RING_EMPTY)
-                panic("net/input recv failed");
-            
-            sys_yield();
+        if ((r = sys_e1000_receive(nsipcbufs[idx].pkt.jp_data, PGSIZE - sizeof (size_t))) < 0) {
+            panic("error on receive");
         }
+        r = thisenv->env_e1000_size;
+        
         cprintf("received\n");
+        
+        cprintf("%d\n", thisenv->env_type);
         
          // Set the length
         nsipcbufs[idx].pkt.jp_len = r;

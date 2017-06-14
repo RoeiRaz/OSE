@@ -267,7 +267,7 @@ e1000_receive_initialization() {
     e1000w(E1000_MTA, (0));
     
     // Allow interrupts
-    e1000w(E1000_IMS, (0xFFFFFFFF));
+    e1000w(E1000_IMS, (E1000_IMS_RXT0));
     e1000r(E1000_ICR);
     
     // Set the receive descriptor base address. we are in a 32bit machine, 
@@ -367,7 +367,7 @@ e1000_receive(char *packet, size_t len) {
     length = rx_desc->length;
     
     // Move the packet to the user buffer
-    memmove(packet, &e1000_rx_packet_buffers[rx_idx], E1000_RECEIVE_PACKET_SIZE);
+    memcpy(packet, &e1000_rx_packet_buffers[rx_idx], E1000_RECEIVE_PACKET_SIZE);
     
     // TODO catch phrase
     e1000_rx_step();
@@ -395,33 +395,55 @@ e1000_rx_empty() {
  * before making it runnable again.
  */
 void
-e1000_intr() {
+e1000_intr(void) {
     struct Env *e;
     int i;
+    int r;
+    physaddr_t prev_cr3;
     
     // Read the cause for the interrupt. also flushes the register, so we must handle all
     // the interrupts that accumulated (it is possible that we accumulated more than 1 type!)
     e1000r(E1000_ICR);
     
+    
     // search for applicable env.
     for (i = 0; i < NENV; i++)
-        if (! envs[i].env_link && envs[i].env_e1000_receiving)
+        if (envs[i].env_status != ENV_FREE && envs[i].env_e1000_receiving)
             break;
+    
     
     // if we didn't find one, finish here.
     if (i == NENV)
         return;
     
-    // try to receive a packet. most likely, we will receive one seccessfully
-    if ((i = e1000_receive(envs[i].env_e1000_packet, envs[i].env_e1000_size)) < 0) {
-        if (-i == E_RING_EMPTY) return;
-        panic("error while receiving: %e", i);
+    prev_cr3 = rcr3();
+    lcr3(PADDR(envs[i].env_pgdir));
+
+    if ((r = e1000_receive(envs[i].env_e1000_packet, envs[i].env_e1000_size)) < 0) {
+        if (r != -E_RING_EMPTY) panic("receive error: %e", r);
+        cprintf("empty!\n");
+        lcr3(prev_cr3);
+        return;
     }
+    
+    lcr3(prev_cr3);
     
     // If we received the packet successfully, inject it and resume running the env.
     envs[i].env_status = ENV_RUNNABLE;
     envs[i].env_e1000_receiving = false;
-    envs[i].env_e1000_size = i;
+    envs[i].env_e1000_size = r;
+    
+    // returns the size of the packet
+    envs[i].env_tf.tf_regs.reg_eax = r;
+}
+
+/*
+ * Generate a packet timer interrupt from the device.
+ */
+void
+e1000_gen_intr(void) {
+    cprintf("e1000_gen_intr(void);\n");
+    e1000w(E1000_ICS, E1000_ICS_RXT0);
 }
 
 /*

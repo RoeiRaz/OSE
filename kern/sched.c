@@ -65,12 +65,15 @@ sched_halt(void)
 	// For debugging and testing purposes, if there are no runnable
 	// environments in the system, then drop into the kernel monitor.
 	for (i = 0; i < NENV; i++) {
-		if ((envs[i].env_status == ENV_RUNNABLE ||
+		if ((
+            envs[i].env_status == ENV_NOT_RUNNABLE ||
+            envs[i].env_status == ENV_RUNNABLE ||
 		     envs[i].env_status == ENV_RUNNING ||
 		     envs[i].env_status == ENV_DYING
 		     ) && envs[i].env_type == ENV_TYPE_USER)
 			break;
 	}
+    
 	if (i == NENV) {
 		cprintf("No runnable environments in the system!\n");
 		while (1)
