@@ -104,6 +104,12 @@ sys_exofork(void)
 	
 	// set return value in child to 0
 	e->env_tf.tf_regs.reg_eax = 0;
+    
+    cprintf("exofork from %d -> %x\n", curenv->env_type, e->env_id);
+    
+    // TODO Ask Igor.
+    // This fixes ns_output/ns_input not counting as NS environments.
+    e->env_type = curenv->env_type;
 
 	return e->env_id;
 }

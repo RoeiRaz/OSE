@@ -14,6 +14,7 @@ input(envid_t ns_envid)
     envid_t whom;
     int idx = 0;
     
+    cprintf("ns_input env type = %d\n", thisenv->env_type);
     
 	// LAB 6: Your code here:
 	// 	- read a packet from the device driver
