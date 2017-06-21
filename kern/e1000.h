@@ -31,7 +31,7 @@ bool e1000_rx_empty();
 void e1000_read_status(struct e1000_status_t *e1000_status);
 void e1000_intr(void);
 void e1000_gen_intr(void);
-uint16_t e1000_read_eeprom(int address)
+uint16_t e1000_read_eeprom(int address);
 
 
 /**

@@ -471,7 +471,9 @@ e1000_attachfn(struct pci_func *pcif) {
     e1000_transmit_initialization();
     e1000_receive_initialization();
     
-    e1000_read_status(&status);
+    // TODO remove this PoC
+    uint16_t mac12 = e1000_read_eeprom(0);
+    cprintf("EEPROM (E1000): MAC BYTES 1,2: %x\n", mac12);
 
     char Surrender[1024] = "\
         Mother told me, yes, she told me\
