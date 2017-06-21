@@ -349,6 +349,14 @@
 #define M88E1000_PHY_VCO_REG_BIT8  0x100 /* Bits 8 & 11 are adjusted for */
 #define M88E1000_PHY_VCO_REG_BIT11 0x800    /* improved BER performance */
 
+/* EEPROM Read */
+#define E1000_EERD_START        0x00000001 /* Start read */
+#define E1000_EERD_DONE         0x00000010 /* Read done */
+#define E1000_EERD_ADDR         0x0000FF00 /* Read address */
+#define E1000_EERD_ADDR_OFFSET  (8)        /* Read address offset */
+#define E1000_EERD_DATA         0xFFFF0000 /* Read data */
+#define E1000_EERD_DATA_OFFSET  (16)       /* Read data offset */
+
 /* Interrupt Cause Read */
 #define E1000_ICR_TXDW          0x00000001 /* Transmit desc written back */
 #define E1000_ICR_TXQE          0x00000002 /* Transmit Queue empty */

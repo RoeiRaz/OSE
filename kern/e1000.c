@@ -511,7 +511,12 @@ e1000_attachfn(struct pci_func *pcif) {
     return 0;
 }
 
-
+uint16_t
+e1000_read_eeprom(int address) {
+    e1000w(E1000_EERD, E1000_EERD_START | ((address << E1000_EERD_ADDR_OFFSET) & E1000_EERD_ADDR));
+    while (! (e1000r(E1000_EERD) & E1000_EERD_DONE));
+    return (e1000r(E1000_EERD) & E1000_EERD_DATA) >> E1000_EERD_DATA_OFFSET;  
+}
 
 void 
 e1000_read_status(struct e1000_status_t *e1000_status) {
