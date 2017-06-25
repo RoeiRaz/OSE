@@ -22,6 +22,16 @@ struct e1000_status_t {
     int padding3 : 22;
 } __attribute__((packed));
 
+union hwaddr {
+    char hwaddr[8];
+    struct{
+        uint16_t word1;
+        uint16_t word2;
+        uint16_t word3;
+        uint16_t word4;
+    } words;
+};
+
 typedef void (* e1000_listener_t)();
 
 int e1000_attachfn(struct pci_func *pcif);
@@ -32,6 +42,7 @@ void e1000_read_status(struct e1000_status_t *e1000_status);
 void e1000_intr(void);
 void e1000_gen_intr(void);
 uint16_t e1000_read_eeprom(int address);
+void e1000_read_hwaddr(union hwaddr *buffer);
 
 
 /**

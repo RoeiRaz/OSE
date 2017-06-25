@@ -54,13 +54,7 @@ e1000_rx_packet_buffers[E1000_NUM_RX_DESC][E1000_RECEIVE_PACKET_SIZE]
 __attribute__((aligned (CACHE_LINE_SIZE)));
 
 // Hardcoded MAC address of this device
-union {
-    char hwaddr[8];
-    struct{
-        uint32_t low;
-        uint32_t high;
-    } fields;
-} netif = {{0x52, 0x54, 0x00, 0x12, 0x34, 0x56, 0x0, 0x0}};
+union hwaddr hwaddr = {{0x52, 0x54, 0x00, 0x12, 0x34, 0x56, 0x0, 0x0}};
 
 /*
  * Read a register, returns it as a uint32_t.
@@ -204,6 +198,17 @@ e1000_rx_desc_init(int i) {
 }
 
 /*
+ * Uploads the MAC address to the 'hwaddr' union.
+ */
+static void
+e1000_hwaddr_initialization() {
+    hwaddr.words.word1 = e1000_read_eeprom(0);
+    hwaddr.words.word2 = e1000_read_eeprom(1);
+    hwaddr.words.word3 = e1000_read_eeprom(2);
+    hwaddr.words.word4 = e1000_read_eeprom(3);
+}
+
+/*
  * Initializes the device for trasmiting, follows section 14.5 of the manual.
  * Assumes that a MMIO memory for the device was mapped.
  */
@@ -256,8 +261,8 @@ e1000_receive_initialization() {
     int i;
     
     // Set RAL and RAH to the hardcoded MAC address.
-    e1000w(E1000_RA, netif.fields.low);
-    e1000w(E1000_RA + 4, netif.fields.high);
+    e1000w(E1000_RA, hwaddr.words.word1 | (hwaddr.words.word2 << 16));
+    e1000w(E1000_RA + 4, hwaddr.words.word3 | (hwaddr.words.word4 << 16));
     
     // Set 'Receive Valid' of RAH
     e1000s(E1000_RA + 4, E1000_RAH_AV, true);
@@ -468,6 +473,7 @@ e1000_attachfn(struct pci_func *pcif) {
     // Enable relevant IRQ in the PIC
     irq_setmask_8259A(irq_mask_8259A & (~(1 << pcif->irq_line)));
     
+    e1000_hwaddr_initialization();
     e1000_transmit_initialization();
     e1000_receive_initialization();
     
@@ -518,6 +524,11 @@ e1000_read_eeprom(int address) {
     e1000w(E1000_EERD, E1000_EERD_START | ((address << E1000_EERD_ADDR_OFFSET) & E1000_EERD_ADDR));
     while (! (e1000r(E1000_EERD) & E1000_EERD_DONE));
     return (e1000r(E1000_EERD) & E1000_EERD_DATA) >> E1000_EERD_DATA_OFFSET;  
+}
+
+void
+e1000_read_hwaddr(union hwaddr *dst_hwaddr) {
+    *dst_hwaddr = hwaddr;
 }
 
 void 

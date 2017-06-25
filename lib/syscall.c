@@ -134,3 +134,9 @@ sys_e1000_receive(char *buffer, size_t len)
 {
     return syscall(SYS_e1000_receive, 0, (uint32_t) buffer, len, 0, 0, 0);
 }
+
+int
+sys_e1000_read_hwaddr(char *buffer, size_t len)
+{
+    return syscall(SYS_e1000_read_hwaddr, 0, (uint32_t) buffer, len, 0, 0, 0);
+}

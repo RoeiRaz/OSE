@@ -20,6 +20,7 @@ enum {
 	SYS_time_msec,
     SYS_e1000_transmit,
     SYS_e1000_receive,
+    SYS_e1000_read_hwaddr,
 	NSYSCALLS
 };
 

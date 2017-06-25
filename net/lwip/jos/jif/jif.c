@@ -60,13 +60,19 @@ low_level_init(struct netif *netif)
     netif->mtu = 1500;
     netif->flags = NETIF_FLAG_BROADCAST;
 
-    // MAC address is hardcoded to eliminate a system call
+    // MAC address is hardcoded to eliminate a system call 
+    /*
     netif->hwaddr[0] = 0x52;
     netif->hwaddr[1] = 0x54;
     netif->hwaddr[2] = 0x00;
     netif->hwaddr[3] = 0x12;
     netif->hwaddr[4] = 0x34;
-    netif->hwaddr[5] = 0x56;
+    netif->hwaddr[5] = 0x56;*/
+    
+    sys_e1000_read_hwaddr((char *) netif->hwaddr, 6);
+    for (r = 0; r < 6; r++) {
+        cprintf("### MAC BYTE %d: %x\n", r, netif->hwaddr[r]);
+    }
 }
 
 /*

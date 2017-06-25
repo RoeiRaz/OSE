@@ -526,6 +526,31 @@ sys_e1000_receive(char *buffer, size_t len) {
     return 0;
 }
 
+// Retrieve the E1000 device hw address into the specified buffer of size length.
+// If the size of the buffer is too small, returns -E_INVAL.
+//
+// Returns the number of bytes copied.
+static int 
+sys_e1000_read_hwaddr(char *buffer, size_t length) {
+    const unsigned mac_length = 6;
+    
+    // Check that the supplied buffer has enough space.
+    if (length < mac_length)
+        return -E_INVAL;
+    
+    // Make sure the environment is allowed to write to the given buffer
+    user_mem_assert(curenv, buffer, mac_length, PTE_W);
+    
+    // Query the device
+    union hwaddr hwaddr;
+    e1000_read_hwaddr(&hwaddr);
+    
+    // Copy the result to the given buffer
+    memcpy(buffer, &(hwaddr.hwaddr), mac_length);
+    
+    return mac_length;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -573,6 +598,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
         return (int32_t) sys_e1000_transmit((char *) a1, (size_t) a2);
     case SYS_e1000_receive:
         return (int32_t) sys_e1000_receive((char *) a1, (size_t) a2);
+    case SYS_e1000_read_hwaddr:
+        return (int32_t) sys_e1000_read_hwaddr((char *) a1, (size_t) a2);
 	default:
 		return -E_INVAL;
 	}
