@@ -1,10 +1,8 @@
-AUDIO_SRCFILES :=		net/timer.c \
-			net/input.c \
-			net/output.c
+AUDIO_SRCFILES :=		audio/serv.c
 
 NET_OBJFILES := $(patsubst audio/%.c, $(OBJDIR)/audio/%.o, $(AUDIO_SRCFILES))
 
-$(OBJDIR)/net/%.o: net/%.c net/ns.h $(OBJDIR)/.vars.USER_CFLAGS $(OBJDIR)/.vars.NET_CFLAGS
+$(OBJDIR)/audio/%.o: audio/%.c net/ns.h $(OBJDIR)/.vars.USER_CFLAGS $(OBJDIR)/.vars.AUDIO_CFLAGS
 	@echo + cc[USER] $<
 	@mkdir -p $(@D)
 	$(V)$(CC) -nostdinc $(USER_CFLAGS) $(NET_CFLAGS) -c -o $@ $<
