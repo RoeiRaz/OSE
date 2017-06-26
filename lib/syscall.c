@@ -140,3 +140,9 @@ sys_e1000_read_hwaddr(char *buffer, size_t len)
 {
     return syscall(SYS_e1000_read_hwaddr, 0, (uint32_t) buffer, len, 0, 0, 0);
 }
+
+int
+sys_sb16_read_version(struct sb16_version_t *version)
+{
+    return syscall(SYS_sb16_read_version, 0, (uint32_t) version, 0, 0, 0, 0);
+}

@@ -1,6 +1,15 @@
 #include <inc/x86.h>
 #include <inc/string.h>
-#include <sb16.h>
+#include <kern/sb16.h>
+#include <kern/pmap.h>
+#include <kern/picirq.h>
+#include <kern/env.h>
+#include <inc/string.h>
+#include <inc/x86.h>
+#include <inc/assert.h>
+#include <inc/error.h>
+#include <inc/env.h>
+#include <inc/trap.h>
 
 int sb16io_base = 0x220;
 const int tries = 0x100000;
@@ -29,4 +38,9 @@ void sb16dsp_reset(void) {
     r = sb16dsp_read();
     if ((r & 0xFF) != 0xAA)
         panic("dsp reset failed");
+}
+
+void sb16_read_version(struct sb16_version_t *version) {
+    sb16dsp_write(0xE1);
+    *(uint16_t*)version = sb16dsp_read();
 }

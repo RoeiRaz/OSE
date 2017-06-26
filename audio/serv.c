@@ -41,6 +41,8 @@ void sb16dsp_reset(void) {
 void
 umain(int argc, char **argv)
 {
-    sb16dsp_reset();
+    struct sb16_version_t version;
+    sys_sb16_read_version(&version);
+    cprintf("##################### SOUND BLASTER, VERSION %d (%d) #####################\n", version.major, version.minor);
     return;
 }

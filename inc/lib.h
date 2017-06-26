@@ -22,6 +22,7 @@
 #include <inc/args.h>
 #include <inc/malloc.h>
 #include <inc/ns.h>
+#include <inc/sb16.h>
 
 #define USED(x)		(void)(x)
 
@@ -63,6 +64,8 @@ unsigned int sys_time_msec(void);
 int sys_e1000_transmit(char *packet, size_t len);
 int sys_e1000_receive(char *buffer, size_t len);
 int sys_e1000_read_hwaddr(char *buffer, size_t len);
+
+int sys_sb16_read_version(struct sb16_version_t *version);
 
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t __attribute__((always_inline))

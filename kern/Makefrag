@@ -43,6 +43,9 @@ KERN_SRCFILES +=	kern/e100.c \
 			kern/e1000.c \
 			kern/pci.c \
 			kern/time.c
+			
+# Source files for LAB6 audio challenge
+KERN_SRCFILES +=    kern/sb16.c
 
 # Only build files if they exist.
 KERN_SRCFILES := $(wildcard $(KERN_SRCFILES))
