@@ -31,7 +31,8 @@
 
 #define IRQ_OFFSET	32	// IRQ 0 corresponds to int IRQ_OFFSET
 
-// Hardware IRQ numbers. We receive these as (IRQ_OFFSET+IRQ_WHATEVER)
+// Hardware IRQ numbers. We receive these as 
+#define IRQ_SB16         5
 #define IRQ_TIMER        0
 #define IRQ_KBD          1
 #define IRQ_SERIAL       4

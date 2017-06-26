@@ -4,5 +4,6 @@
 #include <inc/sb16.h>
 
 void sb16_read_version(struct sb16_version_t *version);
+void sb16_init(void);
 
 #endif

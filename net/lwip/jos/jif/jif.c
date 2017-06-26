@@ -70,9 +70,6 @@ low_level_init(struct netif *netif)
     netif->hwaddr[5] = 0x56;*/
     
     sys_e1000_read_hwaddr((char *) netif->hwaddr, 6);
-    for (r = 0; r < 6; r++) {
-        cprintf("### MAC BYTE %d: %x\n", r, netif->hwaddr[r]);
-    }
 }
 
 /*

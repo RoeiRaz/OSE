@@ -275,6 +275,11 @@ trap_dispatch(struct Trapframe *tf)
         return;
     }
 	
+	// Handle SoundBlaster16 interrupts
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_SB16) {
+        panic("soundblaster 16 interrupt - success!");
+    }
+	
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)

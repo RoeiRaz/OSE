@@ -426,7 +426,6 @@ e1000_intr(void) {
 
     if ((r = e1000_receive(envs[i].env_e1000_packet, envs[i].env_e1000_size)) < 0) {
         if (r != -E_RING_EMPTY) panic("receive error: %e", r);
-        cprintf("empty!\n");
         lcr3(prev_cr3);
         return;
     }
@@ -447,7 +446,6 @@ e1000_intr(void) {
  */
 void
 e1000_gen_intr(void) {
-    cprintf("e1000_gen_intr(void);\n");
     e1000w(E1000_ICS, E1000_ICS_RXT0);
 }
 
@@ -479,7 +477,6 @@ e1000_attachfn(struct pci_func *pcif) {
     
     // TODO remove this PoC
     uint16_t mac12 = e1000_read_eeprom(0);
-    cprintf("EEPROM (E1000): MAC BYTES 1,2: %x\n", mac12);
 
     char Surrender[1024] = "\
         Mother told me, yes, she told me\

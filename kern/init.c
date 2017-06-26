@@ -16,6 +16,7 @@
 #include <kern/spinlock.h>
 #include <kern/time.h>
 #include <kern/pci.h>
+#include <kern/sb16.h>
 
 static void boot_aps(void);
 
@@ -60,6 +61,9 @@ i386_init(void)
 
 	// Starting non-boot CPUs
 	boot_aps();
+    
+    // Lab6 SoundBlaster16 initialization functions
+    sb16_init();
 
 	// Start fs.
 	ENV_CREATE(fs_fs, ENV_TYPE_FS);
