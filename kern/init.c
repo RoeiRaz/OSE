@@ -63,6 +63,7 @@ i386_init(void)
 
 	// Start fs.
 	ENV_CREATE(fs_fs, ENV_TYPE_FS);
+    ENV_CREATE(audio_audio, ENV_TYPE_FS);
 
 #if !defined(TEST_NO_NS)
 	// Start ns.
