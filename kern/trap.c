@@ -16,6 +16,7 @@
 #include <kern/time.h>
 #include <kern/e1000.h>
 #include <kern/picirq.h>
+#include <kern/sb16.h>
 
 static struct Taskstate ts;
 
@@ -277,7 +278,10 @@ trap_dispatch(struct Trapframe *tf)
 	
 	// Handle SoundBlaster16 interrupts
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_SB16) {
-        panic("soundblaster 16 interrupt - success!");
+        sb16_intr();
+        irq_eoi();
+        lapic_eoi();
+        return;
     }
 	
 	// Unexpected trap: The user process or the kernel has a bug.

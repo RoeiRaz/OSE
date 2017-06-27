@@ -28,6 +28,7 @@
 #include <kern/pmap.h>
 #include <kern/picirq.h>
 #include <kern/env.h>
+#include <kern/isadma.h>
 #include <inc/string.h>
 #include <inc/x86.h>
 #include <inc/assert.h>
@@ -46,7 +47,17 @@ const int waitcycles = 0x100000;
 
 // Buffer for DMA transfers. Must not cross 64kb page bounderies. Must not be bigger
 // than 64kb. For optimal performance (?) we allocate 64kb for this.
-uint8_t sb16_buffer[SB16_BUFFER_SIZE] __attribute__ ((aligned(SB16_BUFFER_SIZE)));
+int16_t sb16_buffer[SB16_BUFFER_SIZE >> 1] __attribute__ ((aligned(SB16_BUFFER_SIZE)));
+
+// Cyclic buffer, used to store data waiting to be played.
+// (TAIL, HEAD) interval is playback data (PCM 16bit MONO). [HEAD, TAIL) is free space.
+uint16_t cyclic_buffer[PTSIZE] __attribute__ ((aligned(SB16_BUFFER_SIZE)))
+int cyclic_buffer_tail = PTSIZE - 1;
+int cyclic_buffer_head = 0;
+
+// Due to budget limitation, the driver is capable to serve one environment at a time.
+// The locking environment is sleeping, waiting for this driver to wake it up when playback is done.
+struct Env *locking_environment = NULL;
 
 // Determines whether to print debug messages. Initialization sequence prints
 // and important feedbacks are always printed, regardless of this macro values.
@@ -100,6 +111,11 @@ sb16mixer_write(uint8_t mixer_index, uint8_t data) {
     sb16mixer_write_value(data);
 }
 
+static void
+sb16_ack_intr(void) {
+    inb(sb16io_base + 0x0F);
+}
+
 void 
 sb16dsp_reset(void) {
     uint16_t r;
@@ -109,6 +125,13 @@ sb16dsp_reset(void) {
     r = sb16dsp_read();
     if ((r & 0xFF) != 0xAA)
         panic("dsp reset failed");
+}
+
+void
+sb16dsp_set_output_rate(uint16_t rate_hz) {
+    sb16dsp_write(0x41);
+    sb16dsp_write((rate_hz & 0xFF00) >> 8);
+    sb16dsp_write(rate_hz & 0xFF);
 }
 
 void 
@@ -135,10 +158,57 @@ check_sb16_buffer_address() {
     return true;
 }
 
+
+
+// TODO delete this
+static void
+fill_buffer() {
+    int i;
+    static const int wavelength = 32;
+    for (i = 0; i < (SB16_BUFFER_SIZE >> 1); i++) {
+        if ((i / wavelength) % 2)
+            sb16_buffer[i] = 0x8FFF;
+        else
+            sb16_buffer[i] = 0xFFFF;
+    }
+}
+
+static void
+copy_next_chunk() {
+    if ((cyclic_buffer_tail + 1) % PTSIZE == cyclic_buffer_head)
+        panic("copy_next_chunk(): cyclic buffer is empty!");
+    
+    // copy memory
+    memmove
+}
+
 void sb16_init(void) {
     sb16dsp_reset();
     struct sb16_version_t version;
     sb16_read_version(&version);
+    
+    fill_buffer();
+    
+    // Enable relevant IRQ in the PIC
+    irq_setmask_8259A(irq_mask_8259A & (~(1 << 5)));
+    
+    // Enable DAC
+    sb16dsp_write(0xD1);
+    
+    sb16dsp_set_output_rate(22050);
+    isadma_set_masked(5, true);
+    isadma_set_address(5, PADDR(sb16_buffer), SB16_BUFFER_SIZE >> 1);
+    isadma_set_mode(5, ISADMA_TYPE_M2P, true, false, ISADMA_MODE_SNGL);
+    isadma_set_masked(5, false);
+    
+    // Program auto initialized mono signed 16 bit output
+    sb16dsp_write(0xB6);
+    sb16dsp_write(0x10);
+    
+    sb16dsp_write(((SB16_BUFFER_SIZE >> 2) - 1) & 0xFF);
+    sb16dsp_write((((SB16_BUFFER_SIZE >> 2) - 1) >> 8) & 0xFF);
+    
+    
     cprintf("-------------------------------------------------\n");
     cprintf("# SoundBlaster initialization sequence...\n");
     cprintf("soundblaster16 (major %d minor %d) initialized [%s]\n", version.major, version.minor, "OK");
@@ -146,4 +216,11 @@ void sb16_init(void) {
     cprintf("soundblaster16 DMA settings: %x [%s]\n", sb16mixer_read(0x81), "OK");
     cprintf("soundblaster16 Buffer physical location: %xh [%s]\n", PADDR(sb16_buffer), okorbad(check_sb16_buffer_address()));
     cprintf("-------------------------------------------------\n");
+}
+
+void sb16_intr(void) {
+    cprintf("SB16 INTERRUPT ROUTINE ENCOUNTERED\n");
+    
+    // Ack interrupt
+    sb16_ack_intr();
 }
