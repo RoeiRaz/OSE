@@ -1,7 +1,3 @@
-// HARD CODED WAV DATA CHUNK START
-#include "audio.h"
-int16_t arr[] = {0, 0};
-// HARD CODED WAV DATA CHUNK END
 
 #include <inc/x86.h>
 #include <inc/string.h>
