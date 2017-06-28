@@ -47,12 +47,16 @@ const int waitcycles = 0x100000;
 
 // Buffer for DMA transfers. Must not cross 64kb page bounderies. Must not be bigger
 // than 64kb. For optimal performance (?) we allocate 64kb for this.
-int16_t sb16_buffer[SB16_BUFFER_SIZE >> 1] __attribute__ ((aligned(SB16_BUFFER_SIZE)));
+struct dma_buffer_t sb16_buffer __attribute__ ((aligned(SB16_BUFFER_SIZE)));
+int next_chunk = 0;
 
 // Cyclic buffer, used to store data waiting to be played.
 // (TAIL, HEAD) interval is playback data (PCM 16bit MONO). [HEAD, TAIL) is free space.
-uint16_t cyclic_buffer[PTSIZE] __attribute__ ((aligned(SB16_BUFFER_SIZE)))
-int cyclic_buffer_tail = PTSIZE - 1;
+struct chunk_t 
+cyclic_buffer[PEN_CHUNKS_NUM] 
+__attribute__ ((aligned(SB16_BUFFER_SIZE)));
+
+int cyclic_buffer_tail = PEN_CHUNKS_NUM - 1;
 int cyclic_buffer_head = 0;
 
 // Due to budget limitation, the driver is capable to serve one environment at a time.
@@ -159,43 +163,33 @@ check_sb16_buffer_address() {
 }
 
 
-
-// TODO delete this
-static void
-fill_buffer() {
-    int i;
-    static const int wavelength = 32;
-    for (i = 0; i < (SB16_BUFFER_SIZE >> 1); i++) {
-        if ((i / wavelength) % 2)
-            sb16_buffer[i] = 0x8FFF;
-        else
-            sb16_buffer[i] = 0xFFFF;
-    }
-}
-
 static void
 copy_next_chunk() {
     if ((cyclic_buffer_tail + 1) % PTSIZE == cyclic_buffer_head)
         panic("copy_next_chunk(): cyclic buffer is empty!");
     
-    // copy memory
-    memmove
+    // Increment the tail pointer
+    cyclic_buffer_tail = (cyclic_buffer_tail + 1) % PEN_CHUNKS_NUM;
+    
+    if (cyclic_buffer_tail == cyclic_buffer_head)
+        panic("attempted to copy next chunk when no chunk is pending!");
+    
+    // copy
+    sb16_buffer[next_chunk] = cyclic_buffer[cyclic_buffer_tail];
+    
+    // flip next_chunk index
+    next_chunk = (next_chunk + 1) % 2;
 }
 
-void sb16_init(void) {
-    sb16dsp_reset();
-    struct sb16_version_t version;
-    sb16_read_version(&version);
-    
-    fill_buffer();
-    
-    // Enable relevant IRQ in the PIC
-    irq_setmask_8259A(irq_mask_8259A & (~(1 << 5)));
-    
+static void
+start_playback() {
     // Enable DAC
     sb16dsp_write(0xD1);
     
-    sb16dsp_set_output_rate(22050);
+    // set sample rate
+    sb16dsp_set_output_rate(44100);
+    
+    // set up the ISA DMA channel
     isadma_set_masked(5, true);
     isadma_set_address(5, PADDR(sb16_buffer), SB16_BUFFER_SIZE >> 1);
     isadma_set_mode(5, ISADMA_TYPE_M2P, true, false, ISADMA_MODE_SNGL);
@@ -205,9 +199,53 @@ void sb16_init(void) {
     sb16dsp_write(0xB6);
     sb16dsp_write(0x10);
     
+    // length is half the buffer size (chunk size)
     sb16dsp_write(((SB16_BUFFER_SIZE >> 2) - 1) & 0xFF);
     sb16dsp_write((((SB16_BUFFER_SIZE >> 2) - 1) >> 8) & 0xFF);
     
+    // playback is starting here
+}
+
+static int
+num_free_chunks() {
+    return (((cyclic_buffer_tail - cyclic_buffer_head) % PEN_CHUNKS_NUM) - 1);
+}
+
+int
+sb16_write(struct Env *env, int16_t *audio_pcm16, size_t length /* in words */) {
+    int written_length = 0; // in words
+    int i;
+    
+    if (locking_environment != NULL && env != locking_environment)
+        return -1;
+    
+    for (i = 0; i < num_free_chunks() && i < (length / (DMA_CHUNK_SIZE >> 1)); i++) {
+        cyclic_buffer[cyclic_buffer_head] = ((chunk_t *)audio_pcm16)[i];
+        written_length += (DMA_CHUNK_SIZE >> 1);
+        length -= (DMA_CHUNK_SIZE >> 1);
+        cyclic_buffer_head = (cyclic_buffer_head + 1) % PEN_BUFFER_SIZE;
+    }
+    
+    // we have left over
+    if (length && num_free_chunks()) {
+        memcpy(&(cyclic_buffer[cyclic_buffer_head]), &(((chunk_t *)audio_pcm16)[i]), length << 1);
+        memset(((char *)&(cyclic_buffer[cyclic_buffer_head]) + (length << 1)), 0, DMA_CHUNK_SIZE - (length << 1));
+        written_length += (DMA_CHUNK_SIZE >> 1);
+    }
+    
+    if (!locking_environment) {
+        start_playback();
+        locking_environment = env;
+    }
+}
+
+void sb16_init(void) {
+    sb16dsp_reset();
+    struct sb16_version_t version;
+    sb16_read_version(&version);
+    
+    // Enable relevant IRQ in the PIC
+    irq_setmask_8259A(irq_mask_8259A & (~(1 << 5)));
     
     cprintf("-------------------------------------------------\n");
     cprintf("# SoundBlaster initialization sequence...\n");
@@ -223,4 +261,7 @@ void sb16_intr(void) {
     
     // Ack interrupt
     sb16_ack_intr();
+    
+    // copy next chunk
+    copy_next_chunk();
 }
