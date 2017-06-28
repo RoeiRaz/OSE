@@ -22,6 +22,7 @@ enum {
     SYS_e1000_receive,
     SYS_e1000_read_hwaddr,
     SYS_sb16_read_version,
+    SYS_sb16_play,
 	NSYSCALLS
 };
 

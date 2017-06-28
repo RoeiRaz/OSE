@@ -561,6 +561,22 @@ sys_sb16_read_version(struct sb16_version_t* version) {
     return 0;
 }
 
+static int
+sys_sb16_play(int16_t *audio_pcm, size_t len_words) {
+    int r;
+    
+    user_mem_assert(curenv, audio_pcm, len_words << 1, 0);
+    
+    if((r = sb16_play(curenv, audio_pcm, len_words)) < 0)
+        return r;
+    
+    curenv->env_status = ENV_NOT_RUNNABLE;
+    sched_yield();
+    
+    // does not return
+    return 0;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -612,6 +628,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
         return (int32_t) sys_e1000_read_hwaddr((char *) a1, (size_t) a2);
     case SYS_sb16_read_version:
         return (int32_t) sys_sb16_read_version((struct sb16_version_t *) a1);
+    case SYS_sb16_play:
+        return (int32_t) sys_sb16_play((int16_t *) a1, (size_t) a2);
 	default:
 		return -E_INVAL;
 	}

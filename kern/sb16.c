@@ -47,17 +47,12 @@ const int waitcycles = 0x100000;
 
 // Buffer for DMA transfers. Must not cross 64kb page bounderies. Must not be bigger
 // than 64kb. For optimal performance (?) we allocate 64kb for this.
-struct dma_buffer_t sb16_buffer __attribute__ ((aligned(SB16_BUFFER_SIZE)));
-int next_chunk = 0;
+int16_t 
+sb16_buffer[SB16_BUFFER_SIZE_WORDS]
+__attribute__ ((aligned(DMA_BUFFER_SIZE_WORDS << 1)));
 
-// Cyclic buffer, used to store data waiting to be played.
-// (TAIL, HEAD) interval is playback data (PCM 16bit MONO). [HEAD, TAIL) is free space.
-struct chunk_t 
-cyclic_buffer[PEN_CHUNKS_NUM] 
-__attribute__ ((aligned(SB16_BUFFER_SIZE)));
-
-int cyclic_buffer_tail = PEN_CHUNKS_NUM - 1;
-int cyclic_buffer_head = 0;
+int16_t *audio_data;
+size_t data_length_words;
 
 // Due to budget limitation, the driver is capable to serve one environment at a time.
 // The locking environment is sleeping, waiting for this driver to wake it up when playback is done.
@@ -74,7 +69,6 @@ busysleep(void) {
     int r = 0, i;
     for (i = waitcycles; i > 0; i--) r += i;
 }
-
 
 static uint8_t 
 sb16dsp_read(void) {
@@ -162,27 +156,12 @@ check_sb16_buffer_address() {
     return true;
 }
 
-
 static void
-copy_next_chunk() {
-    if ((cyclic_buffer_tail + 1) % PTSIZE == cyclic_buffer_head)
-        panic("copy_next_chunk(): cyclic buffer is empty!");
+playback(int length_words) {
     
-    // Increment the tail pointer
-    cyclic_buffer_tail = (cyclic_buffer_tail + 1) % PEN_CHUNKS_NUM;
+    if (length_words <= 0) return;
+    if (length_words > DMA_BUFFER_SIZE_WORDS) panic("playback length is bigger than 64kb");
     
-    if (cyclic_buffer_tail == cyclic_buffer_head)
-        panic("attempted to copy next chunk when no chunk is pending!");
-    
-    // copy
-    sb16_buffer[next_chunk] = cyclic_buffer[cyclic_buffer_tail];
-    
-    // flip next_chunk index
-    next_chunk = (next_chunk + 1) % 2;
-}
-
-static void
-start_playback() {
     // Enable DAC
     sb16dsp_write(0xD1);
     
@@ -191,52 +170,66 @@ start_playback() {
     
     // set up the ISA DMA channel
     isadma_set_masked(5, true);
-    isadma_set_address(5, PADDR(sb16_buffer), SB16_BUFFER_SIZE >> 1);
-    isadma_set_mode(5, ISADMA_TYPE_M2P, true, false, ISADMA_MODE_SNGL);
+    isadma_set_address(5, PADDR(sb16_buffer), length_words);
+    isadma_set_mode(5, ISADMA_TYPE_M2P, false, false, ISADMA_MODE_SNGL);
     isadma_set_masked(5, false);
     
     // Program auto initialized mono signed 16 bit output
-    sb16dsp_write(0xB6);
+    sb16dsp_write(0xB0);
     sb16dsp_write(0x10);
     
     // length is half the buffer size (chunk size)
-    sb16dsp_write(((SB16_BUFFER_SIZE >> 2) - 1) & 0xFF);
-    sb16dsp_write((((SB16_BUFFER_SIZE >> 2) - 1) >> 8) & 0xFF);
-    
-    // playback is starting here
+    sb16dsp_write((length_words - 1) & 0xFF);
+    sb16dsp_write(((length_words - 1) >> 8) & 0xFF); // playback is starting here
 }
 
-static int
-num_free_chunks() {
-    return (((cyclic_buffer_tail - cyclic_buffer_head) % PEN_CHUNKS_NUM) - 1);
+static void
+process_audio_data() {
+    if (data_length_words <= 0) return;
+    
+    // heavy part
+    physaddr_t prev_pgdir = rcr3();
+    lcr3(PADDR(locking_environment->env_pgdir));
+    memcpy(sb16_buffer, audio_data, MIN(DMA_BUFFER_SIZE_WORDS, data_length_words) << 1);
+    lcr3(prev_pgdir);
+    
+    // initiate playback
+    playback(MIN(DMA_BUFFER_SIZE_WORDS, data_length_words));
+    
+    // increment pointer, decrement length counter
+    data_length_words -= MIN(DMA_BUFFER_SIZE_WORDS, data_length_words);
+    audio_data += MIN(DMA_BUFFER_SIZE_WORDS, data_length_words);
 }
 
 int
-sb16_write(struct Env *env, int16_t *audio_pcm16, size_t length /* in words */) {
-    int written_length = 0; // in words
-    int i;
+sb16_play(struct Env *env, int16_t *data, size_t len_words) {
     
-    if (locking_environment != NULL && env != locking_environment)
+    if (locking_environment != NULL)
         return -1;
     
-    for (i = 0; i < num_free_chunks() && i < (length / (DMA_CHUNK_SIZE >> 1)); i++) {
-        cyclic_buffer[cyclic_buffer_head] = ((chunk_t *)audio_pcm16)[i];
-        written_length += (DMA_CHUNK_SIZE >> 1);
-        length -= (DMA_CHUNK_SIZE >> 1);
-        cyclic_buffer_head = (cyclic_buffer_head + 1) % PEN_BUFFER_SIZE;
-    }
+    if (len_words <= 0)
+        panic("length must be positive");
     
-    // we have left over
-    if (length && num_free_chunks()) {
-        memcpy(&(cyclic_buffer[cyclic_buffer_head]), &(((chunk_t *)audio_pcm16)[i]), length << 1);
-        memset(((char *)&(cyclic_buffer[cyclic_buffer_head]) + (length << 1)), 0, DMA_CHUNK_SIZE - (length << 1));
-        written_length += (DMA_CHUNK_SIZE >> 1);
-    }
+    locking_environment = env;
     
-    if (!locking_environment) {
-        start_playback();
-        locking_environment = env;
+    audio_data = data;
+    data_length_words = len_words;
+    
+    process_audio_data();
+    
+    return 0;
+}
+
+int16_t b[DMA_BUFFER_SIZE_WORDS];
+
+static void
+fillbuffer() {
+    int i;
+    for (i = 0; i < DMA_BUFFER_SIZE_WORDS; i++) {
+        if ((i / 25) % 2) b[i] = 0xFFF;
+        else b[i] = -0xFFF;
     }
+    sb16_play((struct Env *)1, b, DMA_BUFFER_SIZE_WORDS);
 }
 
 void sb16_init(void) {
@@ -246,6 +239,7 @@ void sb16_init(void) {
     
     // Enable relevant IRQ in the PIC
     irq_setmask_8259A(irq_mask_8259A & (~(1 << 5)));
+    
     
     cprintf("-------------------------------------------------\n");
     cprintf("# SoundBlaster initialization sequence...\n");
@@ -258,10 +252,16 @@ void sb16_init(void) {
 
 void sb16_intr(void) {
     cprintf("SB16 INTERRUPT ROUTINE ENCOUNTERED\n");
-    
     // Ack interrupt
     sb16_ack_intr();
     
-    // copy next chunk
-    copy_next_chunk();
+    if (data_length_words) {
+        process_audio_data();
+        return;
+    } else {
+        // wakeup env
+        locking_environment->env_status = ENV_RUNNABLE;
+        locking_environment->env_tf.tf_regs.reg_eax = 0;
+        locking_environment = NULL;
+    }
 }

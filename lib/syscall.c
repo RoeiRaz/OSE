@@ -146,3 +146,9 @@ sys_sb16_read_version(struct sb16_version_t *version)
 {
     return syscall(SYS_sb16_read_version, 0, (uint32_t) version, 0, 0, 0, 0);
 }
+
+int
+sys_sb16_play(int16_t *audio_pcm, size_t len)
+{
+    return syscall(SYS_sb16_play, 0, (uint32_t) audio_pcm, (uint32_t) len, 0, 0, 0);
+}

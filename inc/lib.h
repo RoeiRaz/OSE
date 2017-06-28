@@ -66,6 +66,7 @@ int sys_e1000_receive(char *buffer, size_t len);
 int sys_e1000_read_hwaddr(char *buffer, size_t len);
 
 int sys_sb16_read_version(struct sb16_version_t *version);
+int sys_sb16_play(int16_t *audio_pcm, size_t len_words);
 
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t __attribute__((always_inline))
