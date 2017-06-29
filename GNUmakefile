@@ -157,6 +157,8 @@ IMAGES = $(OBJDIR)/kern/kernel.img
 QEMUOPTS += -smp $(CPUS)
 QEMUOPTS += -hdb $(OBJDIR)/fs/fs.img
 IMAGES += $(OBJDIR)/fs/fs.img
+QEMUOPTS += -hdc audio/sweet.wav
+IMAGES += audio/sweet.wav
 QEMUOPTS += -net user -net nic,macaddr=00:11:22:33:44:00,model=e1000 -redir tcp:$(PORT7)::7 \
 	   -redir tcp:$(PORT80)::80 -redir udp:$(PORT7)::7 -net dump,file=qemu.pcap
 QEMUOPTS += -soundhw sb16

@@ -64,7 +64,6 @@ isadma_set_mode(int ch, int type, bool auto_reset, bool reverse, int mode) {
     int reverse_on = reverse ? 1 : 0;
     assert_supported_channel(ch);
     outb(ISADMA_MASTER_MODE, (ch - 4) | (type << 2) | (auto_on << 4) | (reverse_on << 5) | (mode << 6));
-    cprintf("isadma_set_mode: %x\n", (ch - 4) | (type << 2) | (auto_on << 4) | (reverse_on << 5) | (mode << 6));
 }
 
 /**

@@ -251,7 +251,9 @@ void sb16_init(void) {
 }
 
 void sb16_intr(void) {
+#if DEBUG
     cprintf("SB16 INTERRUPT ROUTINE ENCOUNTERED\n");
+#endif
     // Ack interrupt
     sb16_ack_intr();
     
