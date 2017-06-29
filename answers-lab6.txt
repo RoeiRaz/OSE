@@ -1,1 +1,56 @@
+# How did you structure your transmit implementation? In particular, what do you do if the transmit ring is full?
 
+First, we get the tail of the transmit ring, and check the DD bit to determine if it is free (when we initialize the descriptors, when set the DD bit on each one).
+If the ring is full, we drop the packet. The user will get an error and will have to try again. If not, we copy the packet to a reserved space for the current
+transmit descriptor, and set the trasmit the packet by advancing the TDT (trasmit tail).
+
+# How did you structure your receive implementation? In particular, what do you do if the receive queue is empty and a user environment requests the next incoming packet?
+
+On the e1000.c file level, we receive by checking the DD bits of the next receive descriptor ((RDT + 1) % N). If the DD bit is off, we do nothing, otherwise 
+we from a buffer reserved for the relevant descriptor. To dodge long busy waits, we use the interrupts mechanism of E1000. we enable RXT0 interrupts on the E1000, 
+which (kinda) will fire interrupt after receive descriptor is ready (DD bits are set). In the interrupt handler, we search the environment list for environments 
+that are waiting for packets (by checking their 'env_e1000_receivin' attribute). If we find one, we receive a packet into a buffer specified by the environment 
+attribute 'env_e1000_packet' (we also use 'env_e1000_size' for buffer size). If indeed the receive was successful, we resume the environment, and set 
+'env_e1000_packet' to the received packet length.
+On the syscall level, the calling environment will specify that it is waiting for packets (env_e1000_receivin), and then will sleep (by setting the env status), 
+not before generating an interrupt (manually) of the E1000. The generated interrupt will wait until the CPU is back to user mode, so no wakeup before sleep 
+scanario will occur. On the user level, the environment 'input' just has to call the syscall, without looping/polling or anything similar.
+
+# What does the web page served by JOS's web server say?
+
+<html>
+<head>
+	<title>jhttpd on JOS</title>
+</head>
+<body>
+	<center>
+		<h2>This file came from JOS.</h2>
+		<marquee>Cheesy web page!</marquee>
+	</center>
+</body>
+</html>
+
+# How long approximately did it take you to do this lab?
+
+too long
+
+# Challenge 1
+
+EEPROM mac extraction
+
+# Challenge 2
+
+We made a really minimal SoundBlaster16 driver (audio driver). It allows user environment (one at a time to) to play raw PCM16 data.
+@@@@@ IMPORTANT! @@@@@
+To see it works, you need:
+    - QEMU that supports alsa audio backend (run <QEMU> --audio-help to check)
+    - setting the backend to alsa (export QEMU_AUDIO_DRV='alsa')
+    - running make qemu-nox INIT_CFLAGS=-DRUN_AUDIO
+
+We manage to play a simple wav file using this driver (audio/sweet.wav).
+What we did to achieve this:
+    - wrote a simple ISA-DMA controller, only for the 16bit chip
+    - wrote a simple SoundBlaster16 controller, using default IRQ (5) and ISA-DMA 16bit channel (5). It works in manual-init mode, not auto init.
+    - wrote a simple wav file parser
+    - copied and altered the IDE controller so it will be able to read from the secondary IDE bus.
+    - made a new environment, called 'audio' (we are not sure why we structured it like a server) and integrated anything into it.
