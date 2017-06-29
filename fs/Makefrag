@@ -38,6 +38,7 @@ FSIMGTXTFILES :=	$(FSIMGTXTFILES) \
 			fs/script \
 			fs/testshell.key \
 			fs/testshell.sh
+			
 
 
 FSIMGFILES := $(FSIMGTXTFILES) $(USERAPPS)
